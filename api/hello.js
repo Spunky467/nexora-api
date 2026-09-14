@@ -11,6 +11,12 @@ export default async function handler(req, res) {
 
   try {
 
+    /*
+      =========================
+      SOURCE URLS
+      =========================
+    */
+
     const wikidataURL =
       "https://www.wikidata.org/w/api.php" +
       "?action=wbsearchentities" +
@@ -32,20 +38,39 @@ export default async function handler(req, res) {
       "?q=" + encodeURIComponent(query) +
       "&limit=5";
 
-    const results = await Promise.allSettled([
+    /*
+      REST COUNTRIES
+    */
+
+    const countriesURL =
+      "https://restcountries.com/v3.1/name/" +
+      encodeURIComponent(query) +
+      "?fullText=true";
+
+
+    /*
+      =========================
+      FETCH ALL SOURCES
+      =========================
+    */
+
+    const responses = await Promise.allSettled([
 
       fetch(wikidataURL),
 
       fetch(wikipediaURL),
 
-      fetch(booksURL)
+      fetch(booksURL),
+
+      fetch(countriesURL)
 
     ]);
 
+
     /*
-      Safely read JSON.
-      If a source returns HTML or another
-      unexpected response, Nexora skips it.
+      =========================
+      SAFE JSON READER
+      =========================
     */
 
     async function safeJSON(result) {
@@ -79,17 +104,24 @@ export default async function handler(req, res) {
 
     }
 
+
     const wikidataData =
-      await safeJSON(results[0]);
+      await safeJSON(responses[0]);
 
     const wikipediaData =
-      await safeJSON(results[1]);
+      await safeJSON(responses[1]);
 
     const booksData =
-      await safeJSON(results[2]);
+      await safeJSON(responses[2]);
+
+    const countriesData =
+      await safeJSON(responses[3]);
+
 
     /*
-      WIKIDATA
+      =========================
+      WIKIDATA RESULTS
+      =========================
     */
 
     const wikidataResults =
@@ -112,8 +144,11 @@ export default async function handler(req, res) {
 
         }));
 
+
     /*
-      WIKIPEDIA
+      =========================
+      WIKIPEDIA RESULTS
+      =========================
     */
 
     const wikipediaResults =
@@ -141,8 +176,11 @@ export default async function handler(req, res) {
 
         }));
 
+
     /*
+      =========================
       OPEN LIBRARY
+      =========================
     */
 
     const bookResults =
@@ -171,11 +209,67 @@ export default async function handler(req, res) {
 
         }));
 
+
     /*
+      =========================
+      REST COUNTRIES
+      =========================
+    */
+
+    const countryResults =
+      Array.isArray(countriesData)
+        ? countriesData.slice(0, 5).map(country => ({
+
+            source: "REST Countries",
+
+            title:
+              country.name?.common || "",
+
+            description:
+              [
+                country.capital?.[0]
+                  ? "Capital: " +
+                    country.capital[0]
+                  : "",
+
+                country.region
+                  ? "Region: " +
+                    country.region
+                  : "",
+
+                country.population
+                  ? "Population: " +
+                    country.population.toLocaleString()
+                  : ""
+
+              ]
+              .filter(Boolean)
+              .join(" • "),
+
+            flag:
+              country.flags?.png ||
+              country.flags?.svg ||
+              "",
+
+            countryCode:
+              country.cca3 || "",
+
+            url:
+              "https://restcountries.com/"
+
+          }))
+        : [];
+
+
+    /*
+      =========================
       COMBINE RESULTS
+      =========================
     */
 
     const allResults = [
+
+      ...countryResults,
 
       ...wikidataResults,
 
@@ -185,48 +279,80 @@ export default async function handler(req, res) {
 
     ];
 
+
     /*
-      ENTITY-FIRST RANKING
+      =========================
+      SMART ENTITY RANKING
+      =========================
     */
 
     const searchText =
       query.toLowerCase();
 
-    allResults.sort((a, b) => {
 
-      const aTitle =
-        a.title.toLowerCase();
+    function scoreResult(result) {
 
-      const bTitle =
-        b.title.toLowerCase();
+      const title =
+        result.title.toLowerCase();
 
-      function score(title) {
+      let score = 0;
 
-        if (title === searchText) {
-          return 100;
-        }
 
-        if (title.startsWith(searchText)) {
-          return 70;
-        }
+      if (title === searchText) {
 
-        if (title.includes(searchText)) {
-          return 40;
-        }
+        score += 100;
 
-        return 0;
+      } else if (
+        title.startsWith(searchText)
+      ) {
+
+        score += 70;
+
+      } else if (
+        title.includes(searchText)
+      ) {
+
+        score += 40;
 
       }
 
-      return score(bTitle) - score(aTitle);
 
-    });
+      /*
+        Give country results extra
+        priority when the country
+        name exactly matches.
+      */
+
+      if (
+        result.source === "REST Countries" &&
+        title === searchText
+      ) {
+
+        score += 50;
+
+      }
+
+
+      return score;
+
+    }
+
+
+    allResults.sort(
+      (a, b) =>
+        scoreResult(b) -
+        scoreResult(a)
+    );
+
 
     /*
-      INTENT
+      =========================
+      SMART INTENT
+      =========================
     */
 
     let intent = "general";
+
 
     if (
       /football|soccer|nba|basketball|tennis|fifa|uefa|premier league|champions league/i
@@ -236,14 +362,14 @@ export default async function handler(req, res) {
       intent = "sports";
 
     } else if (
-      /anime|manga|manhwa|donghua/i
+      /anime|manga|manhwa|donghua|one piece|naruto|demon slayer/i
         .test(query)
     ) {
 
       intent = "anime";
 
     } else if (
-      /game|gaming|playstation|xbox|nintendo|minecraft|codm/i
+      /game|gaming|playstation|xbox|nintendo|minecraft|codm|fortnite/i
         .test(query)
     ) {
 
@@ -257,51 +383,91 @@ export default async function handler(req, res) {
       intent = "news";
 
     } else if (
-      /book|novel|author/i
+      /book|novel|author|harry potter/i
         .test(query)
     ) {
 
       intent = "books";
 
+    } else if (
+      countryResults.length > 0
+    ) {
+
+      intent = "country";
+
     }
 
+
     /*
-      SOURCES THAT ACTUALLY RESPONDED
+      =========================
+      ACTIVE SOURCES
+      =========================
     */
 
     const activeSources = [];
 
+
     if (wikidataData) {
+
       activeSources.push("Wikidata");
+
     }
+
 
     if (wikipediaData) {
+
       activeSources.push("Wikipedia");
+
     }
+
 
     if (booksData) {
+
       activeSources.push("Open Library");
+
     }
 
+
+    if (countriesData) {
+
+      activeSources.push("REST Countries");
+
+    }
+
+
     /*
+      =========================
       FINAL RESPONSE
+      =========================
     */
 
     return res.status(200).json({
 
       success: true,
 
-      source: "Nexora Multi-Source API",
+      source:
+        "Nexora Multi-Source API",
 
-      query: query,
+      query:
 
-      intent: intent,
+        query,
 
-      entityFocus: true,
+      intent:
 
-      activeSources: activeSources,
+        intent,
+
+      entityFocus:
+
+        true,
+
+      activeSources:
+
+        activeSources,
 
       sources: {
+
+        countries:
+          countryResults,
 
         wikidata:
           wikidataResults,
@@ -319,15 +485,18 @@ export default async function handler(req, res) {
 
     });
 
+
   } catch (error) {
 
     return res.status(500).json({
 
       success: false,
 
-      error: "Nexora API failed",
+      error:
+        "Nexora API failed",
 
-      message: error.message
+      message:
+        error.message
 
     });
 
