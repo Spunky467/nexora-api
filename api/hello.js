@@ -13,7 +13,8 @@ export default async function handler(req, res) {
 
     /*
       =====================================
-      NEXORA V11 — UNIVERSAL UNDERSTANDING
+      NEXORA V12
+      ENTITY RESOLUTION ENGINE
       =====================================
     */
 
@@ -102,13 +103,9 @@ export default async function handler(req, res) {
       }
 
       try {
-
         return await response.json();
-
       } catch {
-
         return null;
-
       }
     }
 
@@ -128,24 +125,28 @@ export default async function handler(req, res) {
 
     /*
       =====================================
-      WIKIDATA
+      WIKIDATA ENTITY RESULTS
       =====================================
     */
 
     const wikidataResults =
       (wikidataData?.search || [])
-        .slice(0, 5)
+        .slice(0, 8)
         .map(item => ({
 
           source: "Wikidata",
 
-          id: item.id,
+          id:
+            item.id || "",
 
           title:
             item.label || "",
 
           description:
             item.description || "",
+
+          match:
+            item.match?.text || "",
 
           url:
             "https://www.wikidata.org/wiki/" +
@@ -162,7 +163,7 @@ export default async function handler(req, res) {
 
     const wikipediaResults =
       (wikipediaData?.query?.search || [])
-        .slice(0, 5)
+        .slice(0, 8)
         .map(item => ({
 
           source: "Wikipedia",
@@ -275,174 +276,120 @@ export default async function handler(req, res) {
 
     /*
       =====================================
-      UNIVERSAL QUERY UNDERSTANDING
+      ENTITY TYPE DETECTION
       =====================================
     */
 
-    let entityType = "unknown";
+    function detectEntityType(item) {
 
-    let intent = "general";
+      const text = (
 
-    let confidence = "low";
+        String(item.title || "") +
+        " " +
+        String(item.description || "")
 
-
-    /*
-      PERSON
-    */
-
-    if (
-      /\b(who is|who was|player|actor|actress|singer|artist|ceo|president)\b/i
-        .test(searchText)
-    ) {
-
-      entityType = "person";
-
-      intent = "person";
-
-      confidence = "medium";
-
-    }
+      ).toLowerCase();
 
 
-    /*
-      SPORTS
-    */
+      if (
+        item.source === "REST Countries"
+      ) {
 
-    else if (
-      /\b(football|soccer|nba|basketball|tennis|fifa|uefa|premier league|champions league|world cup|player|club|team|coach|manager)\b/i
-        .test(searchText)
-    ) {
+        return "country";
 
-      entityType = "sports";
-
-      intent = "sports";
-
-      confidence = "medium";
-
-    }
+      }
 
 
-    /*
-      ANIME / MANGA
-    */
+      if (
+        /\b(footballer|football player|soccer player|basketball player|tennis player|actor|actress|singer|musician|politician|president|athlete|writer|author|director)\b/
+          .test(text)
+      ) {
 
-    else if (
-      /\b(anime|manga|manhwa|manhua|donghua|episode|chapter|arc)\b/i
-        .test(searchText)
-    ) {
+        return "person";
 
-      entityType = "anime_manga";
-
-      intent = "anime";
-
-      confidence = "medium";
-
-    }
+      }
 
 
-    /*
-      GAMES
-    */
+      if (
+        /\b(football club|soccer club|basketball team|sports team|football team|national team)\b/
+          .test(text)
+      ) {
 
-    else if (
-      /\b(game|gaming|playstation|xbox|nintendo|minecraft|codm|fortnite|fifa|efootball|pubg)\b/i
-        .test(searchText)
-    ) {
+        return "sports_team";
 
-      entityType = "game";
-
-      intent = "games";
-
-      confidence = "medium";
-
-    }
+      }
 
 
-    /*
-      EDUCATION
-    */
+      if (
+        /\b(video game|computer game|mobile game|game)\b/
+          .test(text)
+      ) {
 
-    else if (
-      /\b(course|subject|school|university|college|degree|mathematics|math|physics|chemistry|biology|computer science|engineering|history|geography|economics)\b/i
-        .test(searchText)
-    ) {
+        return "game";
 
-      entityType = "education";
-
-      intent = "education";
-
-      confidence = "medium";
-
-    }
+      }
 
 
-    /*
-      BOOKS
-    */
+      if (
+        /\b(anime|manga|manhwa|manhua|comic)\b/
+          .test(text)
+      ) {
 
-    else if (
-      /\b(book|novel|author|writer|literature|poem|poetry)\b/i
-        .test(searchText)
-    ) {
+        return "anime_manga";
 
-      entityType = "book";
-
-      intent = "books";
-
-      confidence = "medium";
-
-    }
+      }
 
 
-    /*
-      NEWS
-    */
+      if (
+        /\b(book|novel|literature|poem|poetry)\b/
+          .test(text)
+      ) {
 
-    else if (
-      /\b(news|latest|today|breaking|update|updates|2026)\b/i
-        .test(searchText)
-    ) {
+        return "book";
 
-      entityType = "news";
-
-      intent = "news";
-
-      confidence = "medium";
-
-    }
+      }
 
 
-    /*
-      COUNTRY
-    */
+      if (
+        /\b(university|college|school|course|degree|education)\b/
+          .test(text)
+      ) {
 
-    else if (
-      countryResults.length > 0
-    ) {
+        return "education";
 
-      entityType = "country";
+      }
 
-      intent = "country";
 
-      confidence = "high";
+      if (
+        /\b(company|organization|corporation|brand)\b/
+          .test(text)
+      ) {
+
+        return "organization";
+
+      }
+
+
+      return "general";
 
     }
 
 
     /*
       =====================================
-      SMART RESULT RANKING
+      ENTITY SCORING
       =====================================
     */
 
-    function scoreResult(result) {
+    function entityScore(item) {
 
       const title =
-        String(result.title || "")
-          .toLowerCase();
+        String(item.title || "")
+          .toLowerCase()
+          .trim();
 
       const description =
-        String(result.description || "")
+        String(item.description || "")
           .toLowerCase();
 
       let score = 0;
@@ -452,7 +399,9 @@ export default async function handler(req, res) {
         EXACT TITLE
       */
 
-      if (title === searchText) {
+      if (
+        title === searchText
+      ) {
 
         score += 100;
 
@@ -460,7 +409,7 @@ export default async function handler(req, res) {
 
 
       /*
-        TITLE STARTS WITH QUERY
+        TITLE START
       */
 
       else if (
@@ -473,7 +422,7 @@ export default async function handler(req, res) {
 
 
       /*
-        QUERY APPEARS IN TITLE
+        TITLE CONTAINS QUERY
       */
 
       else if (
@@ -493,55 +442,34 @@ export default async function handler(req, res) {
         description.includes(searchText)
       ) {
 
+        score += 10;
+
+      }
+
+
+      /*
+        WIKIDATA IS STRONG FOR ENTITIES
+      */
+
+      if (
+        item.source === "Wikidata"
+      ) {
+
         score += 15;
 
       }
 
 
       /*
-        EXACT COUNTRY
+        COUNTRY EXACT MATCH
       */
 
       if (
-        result.source === "REST Countries" &&
+        item.source === "REST Countries" &&
         title === searchText
       ) {
 
-        score += 50;
-
-      }
-
-
-      /*
-        SOURCE PRIORITY
-      */
-
-      if (
-        entityType === "country" &&
-        result.source === "REST Countries"
-      ) {
-
-        score += 30;
-
-      }
-
-
-      if (
-        entityType === "book" &&
-        result.source === "Open Library"
-      ) {
-
-        score += 20;
-
-      }
-
-
-      if (
-        entityType !== "book" &&
-        result.source === "Open Library"
-      ) {
-
-        score -= 10;
+        score += 60;
 
       }
 
@@ -553,7 +481,299 @@ export default async function handler(req, res) {
 
     /*
       =====================================
-      COMBINE EVERYTHING
+      ALL POSSIBLE ENTITIES
+      =====================================
+    */
+
+    const entityCandidates = [
+
+      ...countryResults,
+
+      ...wikidataResults
+
+    ];
+
+
+    /*
+      =====================================
+      SCORE ENTITIES
+      =====================================
+    */
+
+    const scoredEntities =
+      entityCandidates
+        .map(item => ({
+
+          ...item,
+
+          entityType:
+            detectEntityType(item),
+
+          score:
+            entityScore(item)
+
+        }))
+        .sort(
+          (a, b) =>
+            b.score - a.score
+        );
+
+
+    /*
+      =====================================
+      REMOVE DUPLICATE ENTITY NAMES
+      =====================================
+    */
+
+    const uniqueEntities = [];
+
+    const seenEntities = new Set();
+
+
+    for (
+      const entity of scoredEntities
+    ) {
+
+      const key =
+        entity.title
+          .toLowerCase()
+          .trim();
+
+      if (!key) {
+        continue;
+      }
+
+      if (
+        seenEntities.has(key)
+      ) {
+        continue;
+      }
+
+      seenEntities.add(key);
+
+      uniqueEntities.push(entity);
+
+    }
+
+
+    /*
+      =====================================
+      BEST ENTITY
+      =====================================
+    */
+
+    const topEntity =
+      uniqueEntities[0] || null;
+
+
+    /*
+      =====================================
+      AMBIGUITY DETECTION
+      =====================================
+    */
+
+    let ambiguous = false;
+
+    const possibleEntities = [];
+
+
+    if (uniqueEntities.length > 1) {
+
+      const first =
+        uniqueEntities[0].score;
+
+      const second =
+        uniqueEntities[1].score;
+
+
+      /*
+        If the top two candidates
+        are reasonably close,
+        Nexora should not blindly
+        assume one meaning.
+      */
+
+      if (
+        second >= first * 0.70
+      ) {
+
+        ambiguous = true;
+
+        uniqueEntities
+          .slice(0, 5)
+          .forEach(entity => {
+
+            possibleEntities.push({
+
+              title:
+                entity.title,
+
+              type:
+                entity.entityType,
+
+              description:
+                entity.description,
+
+              source:
+                entity.source,
+
+              score:
+                entity.score,
+
+              id:
+                entity.id || null,
+
+              url:
+                entity.url || null
+
+            });
+
+          });
+
+      }
+
+    }
+
+
+    /*
+      =====================================
+      ENTITY CONFIDENCE
+      =====================================
+    */
+
+    let confidence = "low";
+
+
+    if (
+      topEntity &&
+      topEntity.score >= 100
+    ) {
+
+      confidence = "high";
+
+    }
+
+    else if (
+      topEntity &&
+      topEntity.score >= 70
+    ) {
+
+      confidence = "medium";
+
+    }
+
+
+    if (ambiguous) {
+
+      confidence = "ambiguous";
+
+    }
+
+
+    /*
+      =====================================
+      GENERAL QUERY UNDERSTANDING
+      =====================================
+    */
+
+    let intent = "general";
+
+
+    if (
+      topEntity
+    ) {
+
+      switch (
+        topEntity.entityType
+      ) {
+
+        case "person":
+
+          intent = "person";
+
+          break;
+
+
+        case "sports_team":
+
+          intent = "sports";
+
+          break;
+
+
+        case "country":
+
+          intent = "country";
+
+          break;
+
+
+        case "game":
+
+          intent = "games";
+
+          break;
+
+
+        case "anime_manga":
+
+          intent = "anime";
+
+          break;
+
+
+        case "book":
+
+          intent = "books";
+
+          break;
+
+
+        case "education":
+
+          intent = "education";
+
+          break;
+
+
+        case "organization":
+
+          intent = "organization";
+
+          break;
+
+      }
+
+    }
+
+
+    /*
+      EXTRA QUERY SIGNALS
+    */
+
+    if (
+      /\b(latest|today|breaking|news|update)\b/i
+        .test(searchText)
+    ) {
+
+      intent = "news";
+
+    }
+
+
+    if (
+      /\b(stats|statistics|matches|fixture|fixtures|score|scores|transfer|transfers|league|champions league|premier league)\b/i
+        .test(searchText)
+    ) {
+
+      intent = "sports";
+
+    }
+
+
+    /*
+      =====================================
+      ALL SEARCH RESULTS
       =====================================
     */
 
@@ -571,15 +791,82 @@ export default async function handler(req, res) {
 
 
     /*
-      REMOVE DUPLICATES
+      =====================================
+      SMART RESULT RANKING
+      =====================================
     */
+
+    function resultScore(result) {
+
+      const title =
+        String(result.title || "")
+          .toLowerCase();
+
+      const description =
+        String(result.description || "")
+          .toLowerCase();
+
+      let score = 0;
+
+
+      if (
+        title === searchText
+      ) {
+
+        score += 100;
+
+      }
+
+      else if (
+        title.startsWith(searchText)
+      ) {
+
+        score += 70;
+
+      }
+
+      else if (
+        title.includes(searchText)
+      ) {
+
+        score += 40;
+
+      }
+
+
+      if (
+        description.includes(searchText)
+      ) {
+
+        score += 10;
+
+      }
+
+
+      if (
+        topEntity &&
+        title ===
+          topEntity.title.toLowerCase()
+      ) {
+
+        score += 50;
+
+      }
+
+
+      return score;
+
+    }
+
 
     const uniqueResults = [];
 
-    const seenTitles = new Set();
+    const seenResults = new Set();
 
 
-    for (const result of allResults) {
+    for (
+      const result of allResults
+    ) {
 
       const key =
         String(result.title || "")
@@ -590,57 +877,24 @@ export default async function handler(req, res) {
         continue;
       }
 
-      if (seenTitles.has(key)) {
+      if (
+        seenResults.has(key)
+      ) {
         continue;
       }
 
-      seenTitles.add(key);
+      seenResults.add(key);
 
       uniqueResults.push(result);
 
     }
 
 
-    /*
-      RANK
-    */
-
     uniqueResults.sort(
       (a, b) =>
-        scoreResult(b) -
-        scoreResult(a)
+        resultScore(b) -
+        resultScore(a)
     );
-
-
-    /*
-      =====================================
-      POSSIBLE ENTITY
-      =====================================
-    */
-
-    const topResult =
-      uniqueResults[0] || null;
-
-
-    const entityMatch =
-      topResult
-        ? {
-            title:
-              topResult.title,
-
-            source:
-              topResult.source,
-
-            id:
-              topResult.id || null,
-
-            description:
-              topResult.description || "",
-
-            url:
-              topResult.url || null
-          }
-        : null;
 
 
     /*
@@ -654,62 +908,70 @@ export default async function handler(req, res) {
 
     if (wikidataData) {
 
-      activeSources.push("Wikidata");
+      activeSources.push(
+        "Wikidata"
+      );
 
     }
 
 
     if (wikipediaData) {
 
-      activeSources.push("Wikipedia");
+      activeSources.push(
+        "Wikipedia"
+      );
 
     }
 
 
     if (booksData) {
 
-      activeSources.push("Open Library");
+      activeSources.push(
+        "Open Library"
+      );
 
     }
 
 
     if (countriesData) {
 
-      activeSources.push("REST Countries");
+      activeSources.push(
+        "REST Countries"
+      );
 
     }
 
 
     /*
       =====================================
-      SEARCH UNDERSTANDING
+      FINAL ENTITY
       =====================================
     */
 
-    const understanding = {
+    const resolvedEntity =
+      topEntity
+        ? {
 
-      originalQuery:
-        query,
+            title:
+              topEntity.title,
 
-      normalizedQuery:
-        cleanQuery,
+            type:
+              topEntity.entityType,
 
-      entityType:
-        entityType,
+            description:
+              topEntity.description,
 
-      intent:
-        intent,
+            source:
+              topEntity.source,
 
-      confidence:
-        confidence,
+            id:
+              topEntity.id || null,
 
-      entityFocus:
-        true,
+            url:
+              topEntity.url || null
 
-      topEntity:
-        entityMatch
-
-    };
+          }
+        : null;
 
 
     /*
@@ -723,16 +985,46 @@ export default async function handler(req, res) {
       success: true,
 
       apiVersion:
-        "V11",
+        "V12",
 
       source:
-        "Nexora Universal Search API",
+        "Nexora Entity Resolution API",
 
       query:
         query,
 
-      understanding:
-        understanding,
+      understanding: {
+
+        originalQuery:
+          query,
+
+        normalizedQuery:
+          cleanQuery,
+
+        entity:
+          resolvedEntity,
+
+        entityType:
+          topEntity
+            ? topEntity.entityType
+            : "unknown",
+
+        intent:
+          intent,
+
+        confidence:
+          confidence,
+
+        entityFocus:
+          true,
+
+        ambiguous:
+          ambiguous,
+
+        possibleEntities:
+          possibleEntities
+
+      },
 
       activeSources:
         activeSources,
@@ -764,6 +1056,9 @@ export default async function handler(req, res) {
     return res.status(500).json({
 
       success: false,
+
+      apiVersion:
+        "V12",
 
       error:
         "Nexora API failed",
