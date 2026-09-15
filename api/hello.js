@@ -1,33 +1,112 @@
 export default async function handler(req, res) {
-  const q = (req.query.q || "").trim();
+  const q = String(req.query.q || "").trim();
 
   if (!q) {
     return res.status(400).json({
       success: false,
-      error: "Please provide a search query"
+      error: "please provide a search query"
     });
   }
 
-  const query = q.toLowerCase();
+  const query = q.toLowerCase().trim();
+  const BBS_KEY = process.env.BBS_API_KEY;
 
-  // =========================
-  // SPORTS DATABASE
-  // =========================
+  const BBS_API = "https://api.bigballsdata.com";
+  const WIKI_API = "https://en.wikipedia.org/w/api.php";
 
-  const players = [
+  // --------------------------------------------------
+  // HELPERS
+  // --------------------------------------------------
+
+  async function safeJSON(url, options = {}) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          "User-Agent": "Nexora/14.0",
+          ...(options.headers || {})
+        }
+      });
+
+      const text = await response.text();
+
+      if (!text) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  function normalize(text) {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function hasAny(words) {
+    return words.some(word => query.includes(word));
+  }
+
+  // --------------------------------------------------
+  // ALIASES
+  // --------------------------------------------------
+
+  const aliases = {
+    "cr7": "cristiano ronaldo",
+    "ronaldo": "cristiano ronaldo",
+    "messi": "lionel messi",
+    "mbappe": "kylian mbappe",
+    "mbappé": "kylian mbappe",
+    "haaland": "erling haaland",
+
+    "psg": "paris saint-germain",
+    "ucl": "champions league",
+    "epl": "premier league",
+    "barca": "barcelona",
+    "barça": "barcelona",
+    "rm": "real madrid",
+    "real": "real madrid",
+
+    "man utd": "manchester united",
+    "man u": "manchester united",
+    "man united": "manchester united",
+    "city": "manchester city"
+  };
+
+  const resolvedQuery = aliases[query] || q;
+
+  const resolvedLower = normalize(resolvedQuery);
+
+  // --------------------------------------------------
+  // SPORTS DETECTION
+  // --------------------------------------------------
+
+  const footballPlayers = [
     "cristiano ronaldo",
     "lionel messi",
     "kylian mbappe",
     "erling haaland",
     "vinicius junior",
     "jude bellingham",
+    "lamine yamal",
     "mohamed salah",
-    "neymar",
+    "bukayo saka",
     "kevin de bruyne",
-    "robert lewandowski"
+    "robert lewandowski",
+    "neymar",
+    "harry kane"
   ];
 
-  const clubs = [
+  const footballClubs = [
     "arsenal",
     "chelsea",
     "liverpool",
@@ -36,302 +115,552 @@ export default async function handler(req, res) {
     "real madrid",
     "barcelona",
     "bayern munich",
-    "psg",
     "paris saint-germain",
     "juventus",
+    "ac milan",
     "inter milan",
-    "ac milan"
+    "tottenham",
+    "atletico madrid"
   ];
 
-  const competitions = [
+  const footballCompetitions = [
     "premier league",
     "champions league",
     "la liga",
     "serie a",
     "bundesliga",
     "ligue 1",
-    "fa cup",
+    "europa league",
+    "conference league",
     "world cup",
-    "afcon",
-    "europa league"
+    "afcon"
   ];
 
-  // =========================
-  // ALIASES
-  // =========================
+  function detectSportsEntity() {
+    if (footballPlayers.some(x => resolvedLower.includes(x))) {
+      return "football_player";
+    }
 
-  const aliases = {
-    "cr7": "cristiano ronaldo",
-    "ronaldo": "cristiano ronaldo",
-    "messi": "lionel messi",
-    "mbappe": "kylian mbappe",
-    "haaland": "erling haaland",
-    "psg": "paris saint-germain",
-    "ucl": "champions league",
-    "epl": "premier league",
-    "barca": "barcelona",
-    "rm": "real madrid",
-    "man u": "manchester united",
-    "man utd": "manchester united",
-    "city": "manchester city"
-  };
+    if (footballClubs.some(x => resolvedLower.includes(x))) {
+      return "football_club";
+    }
 
-  const resolvedQuery = aliases[query] || query;
+    if (footballCompetitions.some(x => resolvedLower.includes(x))) {
+      return "football_competition";
+    }
 
-  // =========================
-  // ENTITY TYPE
-  // =========================
+    if (
+      hasAny([
+        "football",
+        "soccer",
+        "match",
+        "matches",
+        "fixture",
+        "fixtures",
+        "standings",
+        "table",
+        "score",
+        "scores",
+        "transfer",
+        "transfers"
+      ])
+    ) {
+      return "football";
+    }
 
-  let entityType = "general";
-
-  if (players.includes(resolvedQuery)) {
-    entityType = "football_player";
-  } else if (clubs.includes(resolvedQuery)) {
-    entityType = "football_club";
-  } else if (competitions.includes(resolvedQuery)) {
-    entityType = "football_competition";
-  } else if (
-    resolvedQuery.includes("football") ||
-    resolvedQuery.includes("soccer") ||
-    resolvedQuery.includes("basketball") ||
-    resolvedQuery.includes("tennis") ||
-    resolvedQuery.includes("formula 1") ||
-    resolvedQuery.includes("f1")
-  ) {
-    entityType = "sport";
+    return "general";
   }
 
-  // =========================
-  // INTENT
-  // =========================
+  const sportsEntity = detectSportsEntity();
 
-  let intent = "sports_general";
+  // --------------------------------------------------
+  // SPORTS INTENT
+  // --------------------------------------------------
+
+  function detectSportsIntent() {
+    if (
+      hasAny([
+        "live",
+        "live score",
+        "live scores",
+        "score",
+        "scores",
+        "result",
+        "results",
+        "match",
+        "matches",
+        "fixture",
+        "fixtures"
+      ])
+    ) {
+      return "sports_matches";
+    }
+
+    if (
+      hasAny([
+        "standings",
+        "standing",
+        "table",
+        "league table",
+        "position"
+      ])
+    ) {
+      return "sports_standings";
+    }
+
+    if (
+      hasAny([
+        "stats",
+        "statistics",
+        "stat",
+        "goals",
+        "assists",
+        "xg",
+        "appearances",
+        "minutes",
+        "rating"
+      ])
+    ) {
+      return "sports_stats";
+    }
+
+    if (
+      hasAny([
+        "news",
+        "latest",
+        "today",
+        "transfer",
+        "injury",
+        "injured"
+      ])
+    ) {
+      return "sports_news";
+    }
+
+    return "sports_general";
+  }
+
+  const sportsIntent = detectSportsIntent();
+
+  // --------------------------------------------------
+  // BIG BALLS REQUEST
+  // --------------------------------------------------
+
+  async function bbsRequest(path) {
+    if (!BBS_KEY) {
+      return {
+        ok: false,
+        error: "BBS_API_KEY is not configured"
+      };
+    }
+
+    try {
+      const response = await fetch(`${BBS_API}${path}`, {
+        headers: {
+          Authorization: `Bearer ${BBS_KEY}`,
+          "User-Agent": "Nexora/14.0"
+        }
+      });
+
+      const text = await response.text();
+
+      let data = null;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: response.status,
+          data
+        };
+      }
+
+      return {
+        ok: true,
+        data
+      };
+
+    } catch (error) {
+      return {
+        ok: false,
+        error: error.message
+      };
+    }
+  }
+
+  // --------------------------------------------------
+  // WIKIPEDIA
+  // --------------------------------------------------
+
+  async function wikipediaSearch(searchTerm) {
+    const url =
+      `${WIKI_API}?action=query` +
+      `&generator=search` +
+      `&gsrsearch=${encodeURIComponent(searchTerm)}` +
+      `&gsrlimit=5` +
+      `&prop=extracts|pageimages` +
+      `&exintro=1` +
+      `&explaintext=1` +
+      `&piprop=thumbnail` +
+      `&pithumbsize=600` +
+      `&format=json` +
+      `&origin=*`;
+
+    const data = await safeJSON(url);
+
+    if (!data || !data.query || !data.query.pages) {
+      return [];
+    }
+
+    return Object.values(data.query.pages).map(page => ({
+      title: page.title,
+      description: page.extract || "",
+      image: page.thumbnail?.source || null,
+      source: "Wikipedia",
+      type: "knowledge"
+    }));
+  }
+
+  // --------------------------------------------------
+  // SPORTS DATA
+  // --------------------------------------------------
+
+  let sportsData = [];
+  let sportsAnswer = null;
+  let activeSportsSource = false;
+
+  // --------------------------------------------------
+  // LIVE / RECENT MATCHES
+  // --------------------------------------------------
 
   if (
-    query.includes("news") ||
-    query.includes("latest") ||
-    query.includes("transfer") ||
-    query.includes("injury")
+    sportsEntity !== "general" &&
+    sportsIntent === "sports_matches"
   ) {
-    intent = "sports_news";
-  } else if (
-    query.includes("stats") ||
-    query.includes("statistics") ||
-    query.includes("goals") ||
-    query.includes("assists") ||
-    query.includes("records")
+    const matches = await bbsRequest(
+      "/v1/matches?sport=football&limit=10"
+    );
+
+    if (matches.ok && matches.data) {
+      activeSportsSource = true;
+
+      const rows = Array.isArray(matches.data.data)
+        ? matches.data.data
+        : [];
+
+      sportsData = rows.map(match => ({
+        id: match.id || null,
+        title:
+          `${match.home?.name || "Home"} vs ${match.away?.name || "Away"}`,
+        home: match.home?.name || null,
+        away: match.away?.name || null,
+        score: match.score || match.scores || null,
+        status: match.status || null,
+        kickoff: match.kickoff_utc || null,
+        league: match.league || null,
+        source: "Big Balls Sports Data",
+        type: "match"
+      }));
+
+      sportsAnswer = {
+        title: "Football matches",
+        text: sportsData.length
+          ? `Nexora found ${sportsData.length} football matches from the live sports database.`
+          : "No football matches were returned."
+      };
+    }
+  }
+
+  // --------------------------------------------------
+  // STANDINGS
+  // --------------------------------------------------
+
+  if (sportsIntent === "sports_standings") {
+    let league = "epl";
+
+    if (resolvedLower.includes("la liga")) {
+      league = "la_liga";
+    } else if (resolvedLower.includes("serie a")) {
+      league = "serie_a";
+    } else if (resolvedLower.includes("bundesliga")) {
+      league = "bundesliga";
+    } else if (resolvedLower.includes("ligue 1")) {
+      league = "ligue_1";
+    } else if (resolvedLower.includes("champions league")) {
+      league = "ucl";
+    }
+
+    const standings = await bbsRequest(
+      `/v1/standings?sport=football&league=${encodeURIComponent(league)}`
+    );
+
+    if (standings.ok && standings.data) {
+      activeSportsSource = true;
+
+      const rows = Array.isArray(standings.data.data)
+        ? standings.data.data
+        : [];
+
+      sportsData = rows.map((team, index) => ({
+        position:
+          team.position ||
+          team.rank ||
+          index + 1,
+
+        team:
+          team.team?.name ||
+          team.name ||
+          team.club ||
+          "Unknown",
+
+        played:
+          team.played ??
+          team.games_played ??
+          null,
+
+        wins:
+          team.wins ??
+          null,
+
+        draws:
+          team.draws ??
+          null,
+
+        losses:
+          team.losses ??
+          null,
+
+        points:
+          team.points ??
+          null,
+
+        goalDifference:
+          team.goal_difference ??
+          team.goalDifference ??
+          null,
+
+        source: "Big Balls Sports Data",
+        type: "standing"
+      }));
+
+      sportsAnswer = {
+        title: "League standings",
+        text: sportsData.length
+          ? `Nexora found the current ${league.toUpperCase()} standings.`
+          : `No standings were returned for ${league.toUpperCase()}.`
+      };
+    }
+  }
+
+  // --------------------------------------------------
+  // PLAYER STATS
+  // --------------------------------------------------
+
+  if (
+    sportsEntity === "football_player" &&
+    sportsIntent === "sports_stats"
   ) {
-    intent = "sports_stats";
-  } else if (
-    query.includes("table") ||
-    query.includes("standings") ||
-    query.includes("position")
+    const playerSearch = await bbsRequest(
+      `/v1/players?name=${encodeURIComponent(resolvedQuery)}`
+    );
+
+    if (playerSearch.ok && playerSearch.data) {
+      const players = Array.isArray(playerSearch.data.data)
+        ? playerSearch.data.data
+        : [];
+
+      const player = players[0];
+
+      if (player && player.id) {
+        const stats = await bbsRequest(
+          `/v1/players/${encodeURIComponent(player.id)}/stats?sport=football`
+        );
+
+        activeSportsSource = true;
+
+        if (stats.ok && stats.data) {
+          const statRows = Array.isArray(stats.data.data)
+            ? stats.data.data
+            : [];
+
+          sportsData = statRows.map(stat => ({
+            player:
+              player.name ||
+              resolvedQuery,
+
+            season:
+              stat.season ||
+              null,
+
+            club:
+              stat.club?.name ||
+              stat.team?.name ||
+              stat.club ||
+              null,
+
+            goals:
+              stat.goals ??
+              stat.Goals ??
+              null,
+
+            assists:
+              stat.assists ??
+              stat.Assists ??
+              null,
+
+            appearances:
+              stat.appearances ??
+              stat.Appearances ??
+              null,
+
+            minutes:
+              stat.minutes ??
+              stat.Minutes ??
+              null,
+
+            xg:
+              stat.xg ??
+              stat.XG ??
+              stat.npxg ??
+              null,
+
+            rating:
+              stat.rating ??
+              stat.match_rating ??
+              null,
+
+            source: "Big Balls Sports Data",
+            type: "player_stats"
+          }));
+
+          sportsAnswer = {
+            title: `${player.name || resolvedQuery} stats`,
+            text: sportsData.length
+              ? `Nexora found football statistics for ${player.name || resolvedQuery}.`
+              : `The player was found, but no statistics were returned.`
+          };
+        }
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // CLUB / PLAYER GENERAL SEARCH
+  // --------------------------------------------------
+
+  if (
+    sportsEntity !== "general" &&
+    !sportsData.length &&
+    sportsIntent !== "sports_standings"
   ) {
-    intent = "sports_standings";
-  } else if (
-    query.includes("vs") ||
-    query.includes("against") ||
-    query.includes("match") ||
-    query.includes("fixture")
-  ) {
-    intent = "sports_match";
+    const searchTerm =
+      resolvedQuery
+        .replace(/\b(news|latest|stats|statistics|matches|match|scores|score)\b/gi, "")
+        .trim();
+
+    const wikiResults = await wikipediaSearch(searchTerm);
+
+    sportsData = wikiResults.map(item => ({
+      title: item.title,
+      description: item.description,
+      image: item.image,
+      source: item.source,
+      type: "knowledge"
+    }));
   }
 
-  // =========================
-  // SOURCE HELPER
-  // =========================
+  // --------------------------------------------------
+  // GENERAL WIKIPEDIA SEARCH
+  // --------------------------------------------------
 
-  async function safeJSON(response) {
-    try {
-      const text = await response.text();
-      return JSON.parse(text);
-    } catch {
-      return null;
-    }
+  let knowledgeResults = [];
+
+  if (sportsEntity === "general") {
+    knowledgeResults = await wikipediaSearch(q);
   }
 
-  async function getSource(url) {
-    try {
-      const response = await fetch(url);
-      return await safeJSON(response);
-    } catch {
-      return null;
-    }
-  }
-
-  // =========================
-  // EXTERNAL SOURCES
-  // =========================
-
-  const wikidataURL =
-    "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=" +
-    encodeURIComponent(resolvedQuery) +
-    "&language=en&format=json&origin=*";
-
-  const wikipediaURL =
-    "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" +
-    encodeURIComponent(resolvedQuery) +
-    "&format=json&origin=*";
-
-  const [wikidata, wikipedia] = await Promise.all([
-    getSource(wikidataURL),
-    getSource(wikipediaURL)
-  ]);
-
-  // =========================
-  // WIKIDATA
-  // =========================
-
-  const wikidataResults =
-    wikidata?.search?.slice(0, 6).map(item => ({
-      title: item.label || "",
-      description: item.description || "",
-      source: "Wikidata",
-      url: item.concepturi || "",
-      type: entityType
-    })) || [];
-
-  // =========================
-  // WIKIPEDIA
-  // =========================
-
-  const wikipediaResults =
-    wikipedia?.query?.search?.slice(0, 6).map(item => ({
-      title: item.title || "",
-      description: item.snippet
-        ? item.snippet.replace(/<[^>]*>/g, "")
-        : "",
-      source: "Wikipedia",
-      url:
-        "https://en.wikipedia.org/wiki/" +
-        encodeURIComponent(item.title.replace(/ /g, "_")),
-      type: entityType
-    })) || [];
-
-  // =========================
-  // SPORTS ANSWER
-  // =========================
-
-  let answerTitle = "Sports Search";
-  let answerText = "";
-
-  if (entityType === "football_player") {
-    answerTitle = "Football Player";
-
-    if (intent === "sports_stats") {
-      answerText =
-        resolvedQuery +
-        " is being searched for player statistics, goals, assists and records.";
-    } else if (intent === "sports_news") {
-      answerText =
-        resolvedQuery +
-        " is being searched for the latest football news and updates.";
-    } else {
-      answerText =
-        resolvedQuery +
-        " is recognized by Nexora as a football player.";
-    }
-  }
-
-  if (entityType === "football_club") {
-    answerTitle = "Football Club";
-
-    if (intent === "sports_news") {
-      answerText =
-        resolvedQuery +
-        " is being searched for the latest club news and updates.";
-    } else if (intent === "sports_match") {
-      answerText =
-        resolvedQuery +
-        " is being searched for matches and fixtures.";
-    } else if (intent === "sports_standings") {
-      answerText =
-        resolvedQuery +
-        " is being searched for league position and standings.";
-    } else {
-      answerText =
-        resolvedQuery +
-        " is recognized by Nexora as a football club.";
-    }
-  }
-
-  if (entityType === "football_competition") {
-    answerTitle = "Football Competition";
-
-    if (intent === "sports_standings") {
-      answerText =
-        resolvedQuery +
-        " is being searched for tables and standings.";
-    } else if (intent === "sports_match") {
-      answerText =
-        resolvedQuery +
-        " is being searched for matches and fixtures.";
-    } else {
-      answerText =
-        resolvedQuery +
-        " is recognized by Nexora as a football competition.";
-    }
-  }
-
-  if (entityType === "sport") {
-    answerTitle = "Sport";
-    answerText =
-      resolvedQuery +
-      " is recognized by Nexora as a sports-related search.";
-  }
-
-  if (entityType === "general") {
-    answerTitle = "Sports Search";
-    answerText =
-      "Nexora found sports-related information for " +
-      resolvedQuery +
-      ".";
-  }
-
-  // =========================
+  // --------------------------------------------------
   // COMBINE RESULTS
-  // =========================
+  // --------------------------------------------------
 
-  const results = [
-    ...wikidataResults,
-    ...wikipediaResults
+  const combinedResults = [
+    ...sportsData,
+    ...knowledgeResults
   ];
 
-  // =========================
-  // FINAL RESPONSE
-  // =========================
+  // --------------------------------------------------
+  // FINAL ANSWER
+  // --------------------------------------------------
+
+  if (!sportsAnswer && combinedResults.length) {
+    const first = combinedResults[0];
+
+    sportsAnswer = {
+      title: first.title || q,
+      text:
+        first.description ||
+        `Nexora found information about ${q}.`
+    };
+  }
+
+  // --------------------------------------------------
+  // RESPONSE
+  // --------------------------------------------------
 
   return res.status(200).json({
     success: true,
 
-    apiVersion: "V13.2",
+    apiVersion: "V14",
 
     query: q,
 
-    resolvedQuery,
-
     understanding: {
-      category: "sports",
-      entityType,
-      intent,
-      confidence:
-        entityType !== "general"
-          ? "high"
-          : "medium"
-    },
+      resolvedQuery,
+      category:
+        sportsEntity === "general"
+          ? "general"
+          : "sports",
 
-    answer: {
-      title: answerTitle,
-      text: answerText
+      entityType: sportsEntity,
+
+      intent:
+        sportsEntity === "general"
+          ? "knowledge"
+          : sportsIntent,
+
+      confidence:
+        sportsEntity === "general"
+          ? "medium"
+          : "high"
     },
 
     activeSources: [
-      "Nexora Sports Engine",
-      "Wikidata",
-      "Wikipedia"
+      ...(activeSportsSource
+        ? ["Big Balls Sports Data"]
+        : []),
+
+      ...(knowledgeResults.length ||
+          sportsData.some(x => x.source === "Wikipedia")
+        ? ["Wikipedia"]
+        : [])
     ],
 
-    results
+    answer: sportsAnswer,
+
+    results: combinedResults,
+
+    sourceStatus: {
+      liveSports:
+        activeSportsSource,
+
+      wikipedia:
+        knowledgeResults.length > 0 ||
+        sportsData.some(x => x.source === "Wikipedia")
+    }
   });
 }
-// Nexora live Sports connection
