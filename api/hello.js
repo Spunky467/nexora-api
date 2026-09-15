@@ -12,15 +12,28 @@ export default async function handler(req, res) {
   try {
 
     /*
-      =========================
+      =====================================
+      NEXORA V11 — UNIVERSAL UNDERSTANDING
+      =====================================
+    */
+
+    const cleanQuery = query
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const searchText = cleanQuery.toLowerCase();
+
+
+    /*
+      =====================================
       SOURCE URLS
-      =========================
+      =====================================
     */
 
     const wikidataURL =
       "https://www.wikidata.org/w/api.php" +
       "?action=wbsearchentities" +
-      "&search=" + encodeURIComponent(query) +
+      "&search=" + encodeURIComponent(cleanQuery) +
       "&language=en" +
       "&format=json" +
       "&origin=*";
@@ -29,29 +42,25 @@ export default async function handler(req, res) {
       "https://en.wikipedia.org/w/api.php" +
       "?action=query" +
       "&list=search" +
-      "&srsearch=" + encodeURIComponent(query) +
+      "&srsearch=" + encodeURIComponent(cleanQuery) +
       "&format=json" +
       "&origin=*";
 
     const booksURL =
       "https://openlibrary.org/search.json" +
-      "?q=" + encodeURIComponent(query) +
+      "?q=" + encodeURIComponent(cleanQuery) +
       "&limit=5";
-
-    /*
-      REST COUNTRIES
-    */
 
     const countriesURL =
       "https://restcountries.com/v3.1/name/" +
-      encodeURIComponent(query) +
+      encodeURIComponent(cleanQuery) +
       "?fullText=true";
 
 
     /*
-      =========================
-      FETCH ALL SOURCES
-      =========================
+      =====================================
+      FETCH SOURCES
+      =====================================
     */
 
     const responses = await Promise.allSettled([
@@ -68,9 +77,9 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
-      SAFE JSON READER
-      =========================
+      =====================================
+      SAFE JSON
+      =====================================
     */
 
     async function safeJSON(result) {
@@ -101,7 +110,6 @@ export default async function handler(req, res) {
         return null;
 
       }
-
     }
 
 
@@ -119,9 +127,9 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
-      WIKIDATA RESULTS
-      =========================
+      =====================================
+      WIKIDATA
+      =====================================
     */
 
     const wikidataResults =
@@ -133,7 +141,8 @@ export default async function handler(req, res) {
 
           id: item.id,
 
-          title: item.label || "",
+          title:
+            item.label || "",
 
           description:
             item.description || "",
@@ -146,9 +155,9 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
-      WIKIPEDIA RESULTS
-      =========================
+      =====================================
+      WIKIPEDIA
+      =====================================
     */
 
     const wikipediaResults =
@@ -158,7 +167,8 @@ export default async function handler(req, res) {
 
           source: "Wikipedia",
 
-          title: item.title || "",
+          title:
+            item.title || "",
 
           description:
             item.snippet
@@ -178,9 +188,9 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
+      =====================================
       OPEN LIBRARY
-      =========================
+      =====================================
     */
 
     const bookResults =
@@ -211,60 +221,340 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
-      REST COUNTRIES
-      =========================
+      =====================================
+      COUNTRIES
+      =====================================
     */
 
     const countryResults =
       Array.isArray(countriesData)
-        ? countriesData.slice(0, 5).map(country => ({
+        ? countriesData
+            .slice(0, 5)
+            .map(country => ({
 
-            source: "REST Countries",
+              source: "REST Countries",
 
-            title:
-              country.name?.common || "",
+              title:
+                country.name?.common || "",
 
-            description:
-              [
-                country.capital?.[0]
-                  ? "Capital: " +
-                    country.capital[0]
-                  : "",
+              description:
+                [
+                  country.capital?.[0]
+                    ? "Capital: " +
+                      country.capital[0]
+                    : "",
 
-                country.region
-                  ? "Region: " +
-                    country.region
-                  : "",
+                  country.region
+                    ? "Region: " +
+                      country.region
+                    : "",
 
-                country.population
-                  ? "Population: " +
-                    country.population.toLocaleString()
-                  : ""
+                  country.population
+                    ? "Population: " +
+                      country.population.toLocaleString()
+                    : ""
 
-              ]
-              .filter(Boolean)
-              .join(" • "),
+                ]
+                .filter(Boolean)
+                .join(" • "),
 
-            flag:
-              country.flags?.png ||
-              country.flags?.svg ||
-              "",
+              flag:
+                country.flags?.png ||
+                country.flags?.svg ||
+                "",
 
-            countryCode:
-              country.cca3 || "",
+              countryCode:
+                country.cca3 || "",
 
-            url:
-              "https://restcountries.com/"
+              url:
+                "https://restcountries.com/"
 
-          }))
+            }))
         : [];
 
 
     /*
-      =========================
-      COMBINE RESULTS
-      =========================
+      =====================================
+      UNIVERSAL QUERY UNDERSTANDING
+      =====================================
+    */
+
+    let entityType = "unknown";
+
+    let intent = "general";
+
+    let confidence = "low";
+
+
+    /*
+      PERSON
+    */
+
+    if (
+      /\b(who is|who was|player|actor|actress|singer|artist|ceo|president)\b/i
+        .test(searchText)
+    ) {
+
+      entityType = "person";
+
+      intent = "person";
+
+      confidence = "medium";
+
+    }
+
+
+    /*
+      SPORTS
+    */
+
+    else if (
+      /\b(football|soccer|nba|basketball|tennis|fifa|uefa|premier league|champions league|world cup|player|club|team|coach|manager)\b/i
+        .test(searchText)
+    ) {
+
+      entityType = "sports";
+
+      intent = "sports";
+
+      confidence = "medium";
+
+    }
+
+
+    /*
+      ANIME / MANGA
+    */
+
+    else if (
+      /\b(anime|manga|manhwa|manhua|donghua|episode|chapter|arc)\b/i
+        .test(searchText)
+    ) {
+
+      entityType = "anime_manga";
+
+      intent = "anime";
+
+      confidence = "medium";
+
+    }
+
+
+    /*
+      GAMES
+    */
+
+    else if (
+      /\b(game|gaming|playstation|xbox|nintendo|minecraft|codm|fortnite|fifa|efootball|pubg)\b/i
+        .test(searchText)
+    ) {
+
+      entityType = "game";
+
+      intent = "games";
+
+      confidence = "medium";
+
+    }
+
+
+    /*
+      EDUCATION
+    */
+
+    else if (
+      /\b(course|subject|school|university|college|degree|mathematics|math|physics|chemistry|biology|computer science|engineering|history|geography|economics)\b/i
+        .test(searchText)
+    ) {
+
+      entityType = "education";
+
+      intent = "education";
+
+      confidence = "medium";
+
+    }
+
+
+    /*
+      BOOKS
+    */
+
+    else if (
+      /\b(book|novel|author|writer|literature|poem|poetry)\b/i
+        .test(searchText)
+    ) {
+
+      entityType = "book";
+
+      intent = "books";
+
+      confidence = "medium";
+
+    }
+
+
+    /*
+      NEWS
+    */
+
+    else if (
+      /\b(news|latest|today|breaking|update|updates|2026)\b/i
+        .test(searchText)
+    ) {
+
+      entityType = "news";
+
+      intent = "news";
+
+      confidence = "medium";
+
+    }
+
+
+    /*
+      COUNTRY
+    */
+
+    else if (
+      countryResults.length > 0
+    ) {
+
+      entityType = "country";
+
+      intent = "country";
+
+      confidence = "high";
+
+    }
+
+
+    /*
+      =====================================
+      SMART RESULT RANKING
+      =====================================
+    */
+
+    function scoreResult(result) {
+
+      const title =
+        String(result.title || "")
+          .toLowerCase();
+
+      const description =
+        String(result.description || "")
+          .toLowerCase();
+
+      let score = 0;
+
+
+      /*
+        EXACT TITLE
+      */
+
+      if (title === searchText) {
+
+        score += 100;
+
+      }
+
+
+      /*
+        TITLE STARTS WITH QUERY
+      */
+
+      else if (
+        title.startsWith(searchText)
+      ) {
+
+        score += 70;
+
+      }
+
+
+      /*
+        QUERY APPEARS IN TITLE
+      */
+
+      else if (
+        title.includes(searchText)
+      ) {
+
+        score += 40;
+
+      }
+
+
+      /*
+        DESCRIPTION MATCH
+      */
+
+      if (
+        description.includes(searchText)
+      ) {
+
+        score += 15;
+
+      }
+
+
+      /*
+        EXACT COUNTRY
+      */
+
+      if (
+        result.source === "REST Countries" &&
+        title === searchText
+      ) {
+
+        score += 50;
+
+      }
+
+
+      /*
+        SOURCE PRIORITY
+      */
+
+      if (
+        entityType === "country" &&
+        result.source === "REST Countries"
+      ) {
+
+        score += 30;
+
+      }
+
+
+      if (
+        entityType === "book" &&
+        result.source === "Open Library"
+      ) {
+
+        score += 20;
+
+      }
+
+
+      if (
+        entityType !== "book" &&
+        result.source === "Open Library"
+      ) {
+
+        score -= 10;
+
+      }
+
+
+      return score;
+
+    }
+
+
+    /*
+      =====================================
+      COMBINE EVERYTHING
+      =====================================
     */
 
     const allResults = [
@@ -281,64 +571,41 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
-      SMART ENTITY RANKING
-      =========================
+      REMOVE DUPLICATES
     */
 
-    const searchText =
-      query.toLowerCase();
+    const uniqueResults = [];
+
+    const seenTitles = new Set();
 
 
-    function scoreResult(result) {
+    for (const result of allResults) {
 
-      const title =
-        result.title.toLowerCase();
+      const key =
+        String(result.title || "")
+          .toLowerCase()
+          .trim();
 
-      let score = 0;
-
-
-      if (title === searchText) {
-
-        score += 100;
-
-      } else if (
-        title.startsWith(searchText)
-      ) {
-
-        score += 70;
-
-      } else if (
-        title.includes(searchText)
-      ) {
-
-        score += 40;
-
+      if (!key) {
+        continue;
       }
 
-
-      /*
-        Give country results extra
-        priority when the country
-        name exactly matches.
-      */
-
-      if (
-        result.source === "REST Countries" &&
-        title === searchText
-      ) {
-
-        score += 50;
-
+      if (seenTitles.has(key)) {
+        continue;
       }
 
+      seenTitles.add(key);
 
-      return score;
+      uniqueResults.push(result);
 
     }
 
 
-    allResults.sort(
+    /*
+      RANK
+    */
+
+    uniqueResults.sort(
       (a, b) =>
         scoreResult(b) -
         scoreResult(a)
@@ -346,62 +613,40 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
-      SMART INTENT
-      =========================
+      =====================================
+      POSSIBLE ENTITY
+      =====================================
     */
 
-    let intent = "general";
+    const topResult =
+      uniqueResults[0] || null;
 
 
-    if (
-      /football|soccer|nba|basketball|tennis|fifa|uefa|premier league|champions league/i
-        .test(query)
-    ) {
+    const entityMatch =
+      topResult
+        ? {
+            title:
+              topResult.title,
 
-      intent = "sports";
+            source:
+              topResult.source,
 
-    } else if (
-      /anime|manga|manhwa|donghua|one piece|naruto|demon slayer/i
-        .test(query)
-    ) {
+            id:
+              topResult.id || null,
 
-      intent = "anime";
+            description:
+              topResult.description || "",
 
-    } else if (
-      /game|gaming|playstation|xbox|nintendo|minecraft|codm|fortnite/i
-        .test(query)
-    ) {
-
-      intent = "games";
-
-    } else if (
-      /news|latest|today|breaking/i
-        .test(query)
-    ) {
-
-      intent = "news";
-
-    } else if (
-      /book|novel|author|harry potter/i
-        .test(query)
-    ) {
-
-      intent = "books";
-
-    } else if (
-      countryResults.length > 0
-    ) {
-
-      intent = "country";
-
-    }
+            url:
+              topResult.url || null
+          }
+        : null;
 
 
     /*
-      =========================
+      =====================================
       ACTIVE SOURCES
-      =========================
+      =====================================
     */
 
     const activeSources = [];
@@ -436,32 +681,60 @@ export default async function handler(req, res) {
 
 
     /*
-      =========================
+      =====================================
+      SEARCH UNDERSTANDING
+      =====================================
+    */
+
+    const understanding = {
+
+      originalQuery:
+        query,
+
+      normalizedQuery:
+        cleanQuery,
+
+      entityType:
+        entityType,
+
+      intent:
+        intent,
+
+      confidence:
+        confidence,
+
+      entityFocus:
+        true,
+
+      topEntity:
+        entityMatch
+
+    };
+
+
+    /*
+      =====================================
       FINAL RESPONSE
-      =========================
+      =====================================
     */
 
     return res.status(200).json({
 
       success: true,
 
+      apiVersion:
+        "V11",
+
       source:
-        "Nexora Multi-Source API",
+        "Nexora Universal Search API",
 
       query:
-
         query,
 
-      intent:
-
-        intent,
-
-      entityFocus:
-
-        true,
+      understanding:
+        understanding,
 
       activeSources:
-
         activeSources,
 
       sources: {
@@ -481,7 +754,7 @@ export default async function handler(req, res) {
       },
 
       results:
-        allResults.slice(0, 15)
+        uniqueResults.slice(0, 15)
 
     });
 
