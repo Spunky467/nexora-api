@@ -1,523 +1,611 @@
 export default async function handler(req, res) {
-  const q = String(req.query.q || "").trim();
-
-  if (!q) {
-    return res.status(400).json({
-      success: false,
-      error: "please provide a search query"
-    });
-  }
-
-  const originalQuery = q;
-  const query = q.toLowerCase().replace(/\s+/g, " ").trim();
-
-  // =========================
-  // ALIASES
-  // =========================
-
-  const aliases = {
-    "cr7": "cristiano ronaldo",
-    "ronaldo": "cristiano ronaldo",
-    "messi": "lionel messi",
-    "mbappe": "kylian mbappe",
-    "haaland": "erling haaland",
-
-    "psg": "paris saint-germain",
-    "barca": "barcelona",
-    "barça": "barcelona",
-    "rm": "real madrid",
-    "man u": "manchester united",
-    "man utd": "manchester united",
-    "manchester utd": "manchester united",
-    "city": "manchester city",
-    "man city": "manchester city",
-
-    "epl": "premier league",
-    "ucl": "champions league",
-
-    "s24": "samsung galaxy s24",
-    "samsung s24": "samsung galaxy s24"
-  };
-
-  const normalizedQuery = aliases[query] || query;
-
-  // =========================
-  // SOURCE HELPER
-  // =========================
-
-  async function fetchJSON(url, options = {}) {
     try {
-      const response = await fetch(url, options);
-      const text = await response.text();
+        const query = String(req.query.q || "").trim();
 
-      let data;
+        if (!query) {
+            return res.status(200).json({
+                apiVersion: "V15.2",
+                message: "Nexora API is running."
+            });
+        }
 
-      try {
-        data = JSON.parse(text);
-      } catch {
-        return {
-          ok: false,
-          status: response.status,
-          data: null
+        const q = query.toLowerCase().replace(/\s+/g, " ");
+
+        /* =========================
+           ALIASES
+        ========================= */
+
+        const aliases = {
+            "ronaldo": "cristiano ronaldo",
+            "cr7": "cristiano ronaldo",
+            "messi": "lionel messi",
+            "mbappe": "kylian mbappe",
+            "haaland": "erling haaland",
+
+            "epl": "premier league",
+            "ucl": "champions league",
+
+            "barca": "barcelona",
+            "rm": "real madrid",
+
+            "man u": "manchester united",
+            "man utd": "manchester united",
+
+            "s24": "samsung galaxy s24",
+            "samsung s24": "samsung galaxy s24"
         };
-      }
 
-      return {
-        ok: response.ok,
-        status: response.status,
-        data
-      };
+        const normalizedQuery =
+            aliases[q] || q;
 
-    } catch (error) {
-      return {
-        ok: false,
-        status: null,
-        data: null,
-        error: error.message
-      };
-    }
-  }
 
-  // =========================
-  // SPORTS API
-  // =========================
+        /* =========================
+           INTENT
+        ========================= */
 
-  const BBS_KEY = process.env.BBS_API_KEY;
+        let intent = "general";
 
-  async function bbsRequest(path) {
-    if (!BBS_KEY) {
-      return {
-        ok: false,
-        data: null
-      };
-    }
-
-    return fetchJSON(
-      `https://api.bigballsdata.com${path}`,
-      {
-        headers: {
-          Authorization: `Bearer ${BBS_KEY}`,
-          "User-Agent": "Nexora/15.0"
+        if (
+            q.startsWith("how to ") ||
+            q.includes("how do i ") ||
+            q.includes("how can i ")
+        ) {
+            intent = "how_to";
         }
-      }
-    );
-  }
 
-  // =========================
-  // WIKIPEDIA
-  // =========================
-
-  async function wikipediaSearch(searchTerm) {
-    const url =
-      `https://en.wikipedia.org/w/api.php` +
-      `?action=query` +
-      `&list=search` +
-      `&srsearch=${encodeURIComponent(searchTerm)}` +
-      `&format=json` +
-      `&origin=*`;
-
-    return fetchJSON(url);
-  }
-
-  // =========================
-  // ENTITY DATABASE
-  // =========================
-
-  const people = [
-    "cristiano ronaldo",
-    "lionel messi",
-    "kylian mbappe",
-    "erling haaland",
-    "lebron james",
-    "michael jordan",
-    "elon musk",
-    "warren buffett"
-  ];
-
-  const footballClubs = [
-    "arsenal",
-    "chelsea",
-    "liverpool",
-    "manchester united",
-    "manchester city",
-    "real madrid",
-    "barcelona",
-    "bayern munich",
-    "paris saint-germain",
-    "psg",
-    "juventus",
-    "inter milan",
-    "ac milan"
-  ];
-
-  const competitions = [
-    "premier league",
-    "champions league",
-    "la liga",
-    "serie a",
-    "bundesliga",
-    "ligue 1",
-    "mls"
-  ];
-
-  const products = [
-    "samsung galaxy s24",
-    "samsung galaxy s24 ultra",
-    "samsung galaxy s24 plus",
-    "iphone 15",
-    "iphone 15 pro",
-    "iphone 15 pro max",
-    "iphone 16",
-    "iphone 16 pro",
-    "iphone 16 pro max",
-    "playstation 5",
-    "xbox series x",
-    "xbox series s"
-  ];
-
-  const anime = [
-    "demon slayer",
-    "one piece",
-    "naruto",
-    "dragon ball",
-    "bleach",
-    "jujutsu kaisen",
-    "solo leveling",
-    "martial universe",
-    "the great ruler"
-  ];
-
-  // =========================
-  // INTENT DETECTION
-  // =========================
-
-  function detectIntent(text) {
-
-    // HOW-TO
-    if (
-      /^(how to|how do i|how can i|how can you|steps to|ways to)/i.test(text) ||
-      /\b(how do|how can)\b/i.test(text)
-    ) {
-      return "how_to";
-    }
-
-    // SPORTS STANDINGS
-    if (
-      /\b(table|standings|league table|position|positions)\b/i.test(text) &&
-      (
-        text.includes("premier league") ||
-        text.includes("epl") ||
-        text.includes("champions league") ||
-        text.includes("la liga") ||
-        text.includes("serie a") ||
-        text.includes("bundesliga") ||
-        text.includes("ligue 1")
-      )
-    ) {
-      return "sports_standings";
-    }
-
-    // PLAYER STATS
-    if (
-      /\b(stats|statistics|goals|assists|appearances|records)\b/i.test(text) &&
-      people.some(person => text.includes(person))
-    ) {
-      return "player_stats";
-    }
-
-    // SPORTS MATCHES
-    if (
-      /\b(matches|fixtures|games|next game|next match|schedule)\b/i.test(text) &&
-      (
-        footballClubs.some(club => text.includes(club)) ||
-        competitions.some(competition => text.includes(competition))
-      )
-    ) {
-      return "sports_matches";
-    }
-
-    // SPORTS NEWS
-    if (
-      /\b(news|latest|today|transfer|injury|injured|breaking)\b/i.test(text) &&
-      (
-        people.some(person => text.includes(person)) ||
-        footballClubs.some(club => text.includes(club)) ||
-        competitions.some(competition => text.includes(competition))
-      )
-    ) {
-      return "sports_news";
-    }
-
-    // PRODUCT
-    if (
-      products.some(product => text.includes(product)) ||
-      /\b(samsung|iphone|galaxy|playstation|xbox|laptop|phone|tablet|tv)\b/i.test(text)
-    ) {
-      return "product";
-    }
-
-    // ANIME / MANGA
-    if (
-      anime.some(title => text.includes(title)) ||
-      /\b(anime|manga|manhwa|donghua)\b/i.test(text)
-    ) {
-      return "anime_manga";
-    }
-
-    // PERSON
-    if (people.some(person => text === person || text.includes(person))) {
-      return "person";
-    }
-
-    // FOOTBALL CLUB
-    if (footballClubs.some(club => text === club || text.includes(club))) {
-      return "football_club";
-    }
-
-    // COMPETITION
-    if (competitions.some(competition => text === competition || text.includes(competition))) {
-      return "sports_competition";
-    }
-
-    return "general";
-  }
-
-  const intent = detectIntent(normalizedQuery);
-
-  // =========================
-  // HOW-TO UNDERSTANDING
-  // =========================
-
-  let howTo = null;
-
-  if (intent === "how_to") {
-
-    let task = normalizedQuery
-      .replace(/^how to\s+/i, "")
-      .replace(/^how do i\s+/i, "")
-      .replace(/^how can i\s+/i, "")
-      .replace(/^how can you\s+/i, "")
-      .replace(/^steps to\s+/i, "")
-      .replace(/^ways to\s+/i, "")
-      .trim();
-
-    howTo = {
-      title: `How to ${task}`,
-      task: task,
-      type: "step_by_step"
-    };
-  }
-
-  // =========================
-  // PRODUCT UNDERSTANDING
-  // =========================
-
-  let product = null;
-
-  if (intent === "product") {
-
-    let productName = normalizedQuery;
-
-    if (query === "s24" || query === "samsung s24") {
-      productName = "Samsung Galaxy S24";
-    }
-
-    product = {
-      name: productName,
-      type: "technology_product"
-    };
-  }
-
-  // =========================
-  // SPORTS
-  // =========================
-
-  let sports = null;
-
-  if (
-    intent === "sports_standings" ||
-    intent === "sports_matches" ||
-    intent === "player_stats" ||
-    intent === "sports_news"
-  ) {
-
-    sports = {
-      live: false,
-      intent: intent,
-      source: "Big Balls Sports Data"
-    };
-
-    // STANDINGS
-    if (intent === "sports_standings") {
-
-      let league = null;
-
-      if (
-        normalizedQuery.includes("premier league") ||
-        normalizedQuery.includes("epl")
-      ) {
-        league = "epl";
-      }
-
-      if (normalizedQuery.includes("champions league")) {
-        league = "ucl";
-      }
-
-      if (normalizedQuery.includes("la liga")) {
-        league = "laliga";
-      }
-
-      if (normalizedQuery.includes("serie a")) {
-        league = "seriea";
-      }
-
-      if (normalizedQuery.includes("bundesliga")) {
-        league = "bundesliga";
-      }
-
-      if (normalizedQuery.includes("ligue 1")) {
-        league = "ligue1";
-      }
-
-      if (league) {
-        const result = await bbsRequest(
-          `/v1/standings?sport=football&league=${league}`
-        );
-
-        if (result.ok) {
-          sports.live = true;
-          sports.data = result.data;
-          sports.league = league;
+        else if (
+            q.includes("standings") ||
+            q.includes("league table") ||
+            q.includes("table")
+        ) {
+            intent = "sports_standings";
         }
-      }
-    }
 
-    // MATCHES
-    if (intent === "sports_matches") {
+        else if (
+            q.includes("stats") ||
+            q.includes("statistics")
+        ) {
+            intent = "player_stats";
+        }
 
-      const result = await bbsRequest(
-        `/v1/matches?sport=football&limit=20`
-      );
+        else if (
+            q.includes("matches") ||
+            q.includes("fixtures") ||
+            q.includes("schedule")
+        ) {
+            intent = "sports_matches";
+        }
 
-      if (result.ok) {
-        sports.live = true;
-        sports.data = result.data;
-      }
-    }
+        else if (
+            q.includes("news") ||
+            q.includes("latest")
+        ) {
+            intent = "sports_news";
+        }
 
-    // PLAYER STATS
-    if (intent === "player_stats") {
+        else if (
+            normalizedQuery.includes("samsung galaxy s24") ||
+            q.includes("iphone") ||
+            q.includes("playstation") ||
+            q.includes("xbox") ||
+            q.includes("laptop") ||
+            q.includes("phone") ||
+            q.includes("smart tv")
+        ) {
+            intent = "product";
+        }
 
-      const playerSearch = await bbsRequest(
-        `/v1/players?sport=football&search=${encodeURIComponent(normalizedQuery.replace(/\s+stats$/i, ""))}`
-      );
 
-      if (playerSearch.ok) {
+        /* =========================
+           HOW TO
+        ========================= */
 
-        sports.playerSearch = playerSearch.data;
+        if (intent === "how_to") {
 
-        let players =
-          playerSearch.data?.data ||
-          playerSearch.data?.players ||
-          [];
+            const task =
+                query
+                    .replace(/^how\s+to\s+/i, "")
+                    .trim();
 
-        if (Array.isArray(players) && players.length > 0) {
+            let steps = [];
 
-          const player = players[0];
+            const taskLower = task.toLowerCase();
 
-          const playerId =
-            player.id ||
-            player.player_id;
+            if (
+                taskLower.includes("barb") ||
+                taskLower.includes("haircut")
+            ) {
 
-          if (playerId) {
+                steps = [
+                    "Wash and dry your hair first.",
+                    "Choose the haircut style and decide how short you want the sides.",
+                    "Start with the sides using the appropriate clipper guard.",
+                    "Gradually reduce the guard size and blend the different lengths.",
+                    "Clean the hairline around the forehead, ears and neck.",
+                    "Check both sides in a mirror and correct uneven areas.",
+                    "Brush away loose hair and finish with your preferred hair product."
+                ];
 
-            const stats = await bbsRequest(
-              `/v1/players/${playerId}/stats?sport=football`
+            }
+
+            else if (
+                taskLower.includes("cook rice") ||
+                taskLower.includes("make rice")
+            ) {
+
+                steps = [
+                    "Measure and rinse the rice.",
+                    "Put the rice and the appropriate amount of water into a pot.",
+                    "Add salt or seasoning if desired.",
+                    "Bring the water to a boil.",
+                    "Reduce the heat and cover the pot.",
+                    "Allow the rice to cook until the water is absorbed.",
+                    "Fluff the rice and serve."
+                ];
+
+            }
+
+            else if (
+                taskLower.includes("tie a tie") ||
+                taskLower.includes("tie tie")
+            ) {
+
+                steps = [
+                    "Place the tie around your neck with the wide end hanging lower.",
+                    "Cross the wide end over the narrow end.",
+                    "Wrap the wide end around the narrow end.",
+                    "Bring the wide end through the neck loop.",
+                    "Pull it down through the front loop.",
+                    "Tighten the knot and adjust it against your collar."
+                ];
+
+            }
+
+            else if (
+                taskLower.includes("screenshot")
+            ) {
+
+                steps = [
+                    "Open the screen you want to capture.",
+                    "Use your device's screenshot button combination.",
+                    "Wait for the screenshot preview or notification.",
+                    "Open your Photos or Gallery app.",
+                    "Crop or edit the screenshot if necessary."
+                ];
+
+            }
+
+            else {
+
+                steps = [
+                    `Understand what you want to accomplish: ${task}.`,
+                    "Gather the tools or information you need.",
+                    "Follow the process one step at a time.",
+                    "Check your result before continuing.",
+                    "Make any necessary adjustments and finish."
+                ];
+
+            }
+
+            return res.status(200).json({
+                apiVersion: "V15.2",
+
+                understanding: {
+                    originalQuery: query,
+                    normalizedQuery,
+                    intent,
+                    confidence: "high"
+                },
+
+                howTo: {
+                    title: `How to ${task}`,
+                    task,
+                    type: "step_by_step",
+                    steps
+                },
+
+                activeSources: [
+                    "Nexora Intelligence Engine"
+                ]
+            });
+
+        }
+
+
+        /* =========================
+           SPORTS
+        ========================= */
+
+        const sportsQueries = [
+            "premier league",
+            "champions league",
+            "arsenal",
+            "chelsea",
+            "liverpool",
+            "manchester united",
+            "manchester city",
+            "real madrid",
+            "barcelona",
+            "cristiano ronaldo",
+            "lionel messi",
+            "kylian mbappe",
+            "erling haaland"
+        ];
+
+        const isSports =
+            sportsQueries.some(
+                item =>
+                    normalizedQuery.includes(item)
             );
 
-            if (stats.ok) {
-              sports.live = true;
-              sports.player = player;
-              sports.data = stats.data;
+
+        if (
+            isSports &&
+            (
+                intent === "sports_standings" ||
+                intent === "sports_matches" ||
+                intent === "player_stats" ||
+                intent === "sports_news"
+            )
+        ) {
+
+            const apiKey =
+                process.env.BBS_API_KEY;
+
+            if (!apiKey) {
+
+                return res.status(500).json({
+                    apiVersion: "V15.2",
+                    error: "BBS_API_KEY is missing"
+                });
+
             }
-          }
+
+
+            /* =========================
+               LEAGUE MAP
+            ========================= */
+
+            let league = null;
+
+            if (
+                normalizedQuery.includes(
+                    "premier league"
+                )
+            ) {
+                league = "epl";
+            }
+
+            else if (
+                normalizedQuery.includes(
+                    "champions league"
+                )
+            ) {
+                league = "ucl";
+            }
+
+
+            /* =========================
+               STANDINGS
+            ========================= */
+
+            if (
+                intent ===
+                "sports_standings"
+            ) {
+
+                if (!league) {
+
+                    return res.status(200).json({
+                        apiVersion: "V15.2",
+
+                        understanding: {
+                            originalQuery: query,
+                            normalizedQuery,
+                            intent,
+                            confidence: "medium"
+                        },
+
+                        sports: {
+                            type: "standings",
+                            data: []
+                        },
+
+                        answer: {
+                            title: "League Standings",
+                            text:
+                                "Nexora needs a specific competition for the table."
+                        }
+                    });
+
+                }
+
+                const url =
+                    "https://api.bigballsdata.com/v1/standings" +
+                    "?sport=football" +
+                    "&league=" +
+                    encodeURIComponent(league);
+
+                const response =
+                    await fetch(url, {
+                        headers: {
+                            "Authorization":
+                                `Bearer ${apiKey}`,
+                            "Accept":
+                                "application/json"
+                        }
+                    });
+
+                const raw =
+                    await response.json();
+
+                if (!response.ok) {
+
+                    return res.status(response.status).json({
+                        apiVersion: "V15.2",
+                        error: "Sports API standings request failed",
+                        details: raw
+                    });
+
+                }
+
+                return res.status(200).json({
+
+                    apiVersion: "V15.2",
+
+                    understanding: {
+                        originalQuery: query,
+                        normalizedQuery,
+                        intent,
+                        confidence: "high"
+                    },
+
+                    sports: {
+                        type: "standings",
+                        league,
+                        data:
+                            Array.isArray(raw.data)
+                            ?
+                            raw.data
+                            :
+                            []
+                    },
+
+                    answer: {
+                        title:
+                            league === "epl"
+                            ?
+                            "Premier League Standings"
+                            :
+                            "Champions League Standings",
+
+                        text:
+                            "Current league standings."
+                    },
+
+                    activeSources: [
+                        "Nexora Sports Engine",
+                        "Big Balls Sports Data"
+                    ]
+
+                });
+
+            }
+
+
+            /* =========================
+               MATCHES
+            ========================= */
+
+            if (
+                intent ===
+                "sports_matches"
+            ) {
+
+                let url =
+                    "https://api.bigballsdata.com/v1/matches" +
+                    "?sport=football" +
+                    "&limit=20";
+
+                if (league) {
+
+                    url +=
+                        "&league=" +
+                        encodeURIComponent(
+                            league
+                        );
+
+                }
+
+                const response =
+                    await fetch(url, {
+                        headers: {
+                            "Authorization":
+                                `Bearer ${apiKey}`,
+                            "Accept":
+                                "application/json"
+                        }
+                    });
+
+                const raw =
+                    await response.json();
+
+                return res.status(200).json({
+
+                    apiVersion: "V15.2",
+
+                    understanding: {
+                        originalQuery: query,
+                        normalizedQuery,
+                        intent,
+                        confidence: "high"
+                    },
+
+                    sports: {
+                        type: "matches",
+                        league,
+                        data:
+                            Array.isArray(raw.data)
+                            ?
+                            raw.data
+                            :
+                            []
+                    },
+
+                    answer: {
+                        title: "Football Matches",
+                        text: "Nexora found football fixtures."
+                    },
+
+                    activeSources: [
+                        "Nexora Sports Engine",
+                        "Big Balls Sports Data"
+                    ]
+
+                });
+
+            }
+
         }
-      }
+
+
+        /* =========================
+           PRODUCT
+        ========================= */
+
+        if (intent === "product") {
+
+            let productName =
+                normalizedQuery;
+
+            if (
+                normalizedQuery ===
+                "samsung galaxy s24"
+            ) {
+
+                productName =
+                    "Samsung Galaxy S24";
+
+            }
+
+            return res.status(200).json({
+
+                apiVersion: "V15.2",
+
+                understanding: {
+                    originalQuery: query,
+                    normalizedQuery,
+                    intent,
+                    confidence: "high"
+                },
+
+                product: {
+                    name: productName,
+                    type: "technology_product"
+                },
+
+                activeSources: [
+                    "Nexora Intelligence Engine"
+                ]
+
+            });
+
+        }
+
+
+        /* =========================
+           WIKIPEDIA FALLBACK
+        ========================= */
+
+        let wikiResults = [];
+
+        try {
+
+            const wikiURL =
+                "https://en.wikipedia.org/w/api.php" +
+                "?action=query" +
+                "&generator=search" +
+                "&gsrsearch=" +
+                encodeURIComponent(
+                    normalizedQuery
+                ) +
+                "&gsrnamespace=0" +
+                "&gsrlimit=5" +
+                "&prop=extracts|pageimages|info" +
+                "&exintro=1" +
+                "&explaintext=1" +
+                "&inprop=url" +
+                "&piprop=thumbnail" +
+                "&pithumbsize=500" +
+                "&format=json" +
+                "&origin=*";
+
+            const response =
+                await fetch(wikiURL);
+
+            const data =
+                await response.json();
+
+            const pages =
+                data.query?.pages || {};
+
+            wikiResults =
+                Object.values(pages)
+                    .map(page => ({
+                        title: page.title,
+                        description:
+                            page.extract ||
+                            "No description available.",
+                        image:
+                            page.thumbnail?.source ||
+                            "",
+                        url:
+                            page.fullurl ||
+                            "",
+                        source: "Wikipedia"
+                    }));
+
+        } catch (error) {
+
+            wikiResults = [];
+
+        }
+
+
+        return res.status(200).json({
+
+            apiVersion: "V15.2",
+
+            understanding: {
+                originalQuery: query,
+                normalizedQuery,
+                intent,
+                confidence: "medium"
+            },
+
+            wikipedia: wikiResults,
+
+            activeSources: [
+                "Nexora Intelligence Engine",
+                "Wikipedia"
+            ]
+
+        });
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+
+            apiVersion: "V15.2",
+
+            error:
+                error.message ||
+                "Nexora API error"
+
+        });
+
     }
-  }
-
-  // =========================
-  // WIKIPEDIA FALLBACK
-  // =========================
-
-  let wikipedia = null;
-
-  if (!sports?.live) {
-
-    const wiki = await wikipediaSearch(normalizedQuery);
-
-    if (wiki.ok) {
-
-      wikipedia =
-        wiki.data?.query?.search?.slice(0, 8) || [];
-    }
-  }
-
-  // =========================
-  // RESPONSE
-  // =========================
-
-  const activeSources = [];
-
-  if (sports?.live) {
-    activeSources.push("Big Balls Sports Data");
-  }
-
-  if (wikipedia) {
-    activeSources.push("Wikipedia");
-  }
-
-  if (intent === "how_to") {
-    activeSources.push("Nexora How-To Engine");
-  }
-
-  if (intent === "product") {
-    activeSources.push("Nexora Product Understanding");
-  }
-
-  return res.status(200).json({
-
-    success: true,
-
-    apiVersion: "V15.0",
-
-    query: originalQuery,
-
-    normalizedQuery,
-
-    understanding: {
-      intent,
-      confidence:
-        intent === "general"
-          ? "medium"
-          : "high"
-    },
-
-    entity: {
-      type: intent,
-      name: normalizedQuery
-    },
-
-    howTo,
-
-    product,
-
-    sports,
-
-    wikipedia,
-
-    activeSources,
-
-    message: "Nexora V15 Intelligence Engine"
-  });
 }
