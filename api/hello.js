@@ -1,5 +1,21 @@
 export default async function handler(req, res) {
 
+  // =========================================================
+  // CORS
+  // =========================================================
+
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+
   const q = String(req.query.q || "").trim();
 
   if (!q) {
@@ -249,10 +265,6 @@ export default async function handler(req, res) {
 
   function detectIntent(text) {
 
-    // -------------------------------------------------------
-    // HOW TO
-    // -------------------------------------------------------
-
     if (
       /^(how to|how do i|how can i|how can you|steps to|ways to|guide to)\b/i
         .test(text)
@@ -262,10 +274,6 @@ export default async function handler(req, res) {
 
     }
 
-
-    // -------------------------------------------------------
-    // SPORTS STANDINGS
-    // -------------------------------------------------------
 
     if (
       /\b(standings|table|league table|positions|position)\b/i
@@ -280,10 +288,6 @@ export default async function handler(req, res) {
 
     }
 
-
-    // -------------------------------------------------------
-    // SPORTS MATCHES
-    // -------------------------------------------------------
 
     if (
       /\b(matches|fixtures|games|schedule|next match|next game|upcoming)\b/i
@@ -305,10 +309,6 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // PLAYER STATS
-    // -------------------------------------------------------
-
     if (
       /\b(stats|statistics|goals|assists|appearances|records)\b/i
         .test(text)
@@ -322,10 +322,6 @@ export default async function handler(req, res) {
 
     }
 
-
-    // -------------------------------------------------------
-    // SPORTS NEWS
-    // -------------------------------------------------------
 
     if (
       /\b(news|latest|today|transfer|injury|injured|breaking)\b/i
@@ -351,10 +347,6 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // PRODUCT
-    // -------------------------------------------------------
-
     if (
       products.some(product =>
         text.includes(product)
@@ -368,10 +360,6 @@ export default async function handler(req, res) {
 
     }
 
-
-    // -------------------------------------------------------
-    // ANIME / MANGA
-    // -------------------------------------------------------
 
     if (
       anime.some(title =>
@@ -387,10 +375,6 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // PERSON
-    // -------------------------------------------------------
-
     if (
       people.some(person =>
         text === person ||
@@ -403,10 +387,6 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // CLUB
-    // -------------------------------------------------------
-
     if (
       footballClubs.some(club =>
         text === club ||
@@ -418,10 +398,6 @@ export default async function handler(req, res) {
 
     }
 
-
-    // -------------------------------------------------------
-    // COMPETITION
-    // -------------------------------------------------------
 
     if (
       competitions.some(competition =>
@@ -463,10 +439,6 @@ export default async function handler(req, res) {
     const lowerTask = cleanTask.toLowerCase();
 
 
-    // -------------------------------------------------------
-    // BARB HAIR
-    // -------------------------------------------------------
-
     if (
       lowerTask.includes("barb my hair") ||
       lowerTask.includes("cut my hair") ||
@@ -506,10 +478,6 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // COOK RICE
-    // -------------------------------------------------------
-
     if (
       lowerTask.includes("cook rice") ||
       lowerTask.includes("make rice")
@@ -548,10 +516,6 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // TIE
-    // -------------------------------------------------------
-
     if (
       lowerTask.includes("tie a tie") ||
       lowerTask.includes("tie my tie")
@@ -588,10 +552,6 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // SCREENSHOT
-    // -------------------------------------------------------
-
     if (
       lowerTask.includes("screenshot") ||
       lowerTask.includes("take a screenshot")
@@ -625,10 +585,6 @@ export default async function handler(req, res) {
 
     }
 
-
-    // -------------------------------------------------------
-    // GENERIC HOW-TO
-    // -------------------------------------------------------
 
     return {
 
@@ -722,10 +678,6 @@ export default async function handler(req, res) {
 
     };
 
-
-    // =======================================================
-    // LEAGUE DETECTOR
-    // =======================================================
 
     function getLeague(text) {
 
@@ -823,7 +775,7 @@ export default async function handler(req, res) {
 
 
     // =======================================================
-    // MATCHES / FIXTURES
+    // MATCHES
     // =======================================================
 
     if (intent === "sports_matches") {
@@ -849,10 +801,6 @@ export default async function handler(req, res) {
 
       }
 
-
-      // -----------------------------------------------------
-      // TEAM MATCHES
-      // -----------------------------------------------------
 
       if (
         sports.live &&
@@ -949,7 +897,6 @@ export default async function handler(req, res) {
           players.length > 0
         ) {
 
-          // Exact-name match first
           const exactPlayer =
             players.find(player => {
 
@@ -1071,14 +1018,6 @@ export default async function handler(req, res) {
 
   let wikipedia = null;
 
-
-  /*
-    IMPORTANT:
-
-    Recognized sports/how-to/product requests should NOT
-    randomly fall through to Wikipedia when the main engine
-    already understands the query.
-  */
 
   const shouldUseWikipedia =
     intent === "general" ||
@@ -1252,7 +1191,6 @@ export default async function handler(req, res) {
 
     normalizedQuery,
 
-
     understanding: {
 
       intent,
@@ -1264,27 +1202,19 @@ export default async function handler(req, res) {
 
     },
 
-
     entity,
-
 
     howTo,
 
-
     product,
-
 
     sports,
 
-
     answer,
-
 
     wikipedia,
 
-
     activeSources,
-
 
     message:
       "Nexora V15.2 Intelligence Engine"
