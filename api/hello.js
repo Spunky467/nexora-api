@@ -25,7 +25,9 @@ export default async function handler(req, res) {
     });
   }
 
+
   const originalQuery = q;
+
 
   const query = q
     .toLowerCase()
@@ -72,8 +74,48 @@ export default async function handler(req, res) {
   };
 
 
-  const normalizedQuery =
-    aliases[query] || query;
+  // =========================================================
+  // SMART QUERY NORMALIZATION
+  // =========================================================
+
+  let normalizedQuery = query;
+
+
+  // Exact alias first
+  if (aliases[query]) {
+
+    normalizedQuery = aliases[query];
+
+  } else {
+
+    // Ronaldo / CR7 inside a longer query
+    normalizedQuery = normalizedQuery
+      .replace(/\bcr7\b/gi, "cristiano ronaldo")
+      .replace(/\bcristiano\s+ronaldo\b/gi, "cristiano ronaldo")
+      .replace(/\bronaldinho\b/gi, "ronaldinho");
+
+
+    // Only replace standalone "ronaldo" when it is not already
+    // part of "cristiano ronaldo"
+    normalizedQuery = normalizedQuery.replace(
+      /(?<!cristiano\s)\bronaldo\b/gi,
+      "cristiano ronaldo"
+    );
+
+
+    // Other common player aliases inside queries
+    normalizedQuery = normalizedQuery
+      .replace(/\bmessi\b/gi, "lionel messi")
+      .replace(/\bmbappé\b/gi, "kylian mbappe")
+      .replace(/\bmbappe\b/gi, "kylian mbappe")
+      .replace(/\bhaaland\b/gi, "erling haaland");
+
+
+    normalizedQuery = normalizedQuery
+      .replace(/\s+/g, " ")
+      .trim();
+
+  }
 
 
   // =========================================================
@@ -91,14 +133,19 @@ export default async function handler(req, res) {
       let data = null;
 
       try {
+
         data = JSON.parse(text);
+
       } catch {
+
         return {
           ok: false,
           status: response.status,
           data: null
         };
+
       }
+
 
       return {
         ok: response.ok,
@@ -145,7 +192,7 @@ export default async function handler(req, res) {
       {
         headers: {
           Authorization: `Bearer ${BBS_KEY}`,
-          "User-Agent": "Nexora/15.2"
+          "User-Agent": "Nexora/15.3"
         }
       }
     );
@@ -655,6 +702,191 @@ export default async function handler(req, res) {
 
 
   // =========================================================
+  // STANDINGS NORMALIZER
+  // =========================================================
+
+  function extractStandingsRows(payload) {
+
+    if (!payload) {
+      return [];
+    }
+
+
+    // Most likely Big Balls structure:
+    // payload.data.standings[0].rows
+
+    const standingsCandidates = [
+
+      payload?.data?.standings,
+
+      payload?.standings,
+
+      payload?.data?.data,
+
+      payload?.data
+
+    ];
+
+
+    for (const candidate of standingsCandidates) {
+
+      if (!candidate) {
+        continue;
+      }
+
+
+      // Example:
+      // standings: [
+      //   {
+      //     rows: [...]
+      //   }
+      // ]
+
+      if (Array.isArray(candidate)) {
+
+        const nestedRows = candidate
+          .filter(item =>
+            item &&
+            Array.isArray(item.rows)
+          )
+          .flatMap(item => item.rows);
+
+
+        if (nestedRows.length > 0) {
+
+          return nestedRows;
+
+        }
+
+
+        // Sometimes the candidate itself is already
+        // the array of table rows.
+
+        if (
+          candidate.length > 0 &&
+          candidate.some(item =>
+            item &&
+            typeof item === "object" &&
+            (
+              item.team ||
+              item.team_name ||
+              item.name ||
+              item.position ||
+              item.rank ||
+              item.points ||
+              item.pts
+            )
+          )
+        ) {
+
+          return candidate;
+
+        }
+
+      }
+
+
+      // Example:
+      // data: {
+      //   rows: [...]
+      // }
+
+      if (
+        candidate &&
+        typeof candidate === "object" &&
+        Array.isArray(candidate.rows)
+      ) {
+
+        return candidate.rows;
+
+      }
+
+    }
+
+
+    // =======================================================
+    // DEEP FALLBACK
+    // =======================================================
+
+    let foundRows = null;
+
+
+    function search(node, depth = 0) {
+
+      if (!node || depth > 8 || foundRows) {
+        return;
+      }
+
+
+      if (Array.isArray(node)) {
+
+        for (const item of node) {
+
+          search(item, depth + 1);
+
+          if (foundRows) {
+            return;
+          }
+
+        }
+
+        return;
+
+      }
+
+
+      if (
+        typeof node === "object"
+      ) {
+
+        if (
+          Array.isArray(node.rows) &&
+          node.rows.length > 0
+        ) {
+
+          foundRows = node.rows;
+
+          return;
+
+        }
+
+
+        for (const key of Object.keys(node)) {
+
+          if (
+            key === "meta" ||
+            key === "error"
+          ) {
+            continue;
+          }
+
+
+          search(
+            node[key],
+            depth + 1
+          );
+
+
+          if (foundRows) {
+            return;
+          }
+
+        }
+
+      }
+
+    }
+
+
+    search(payload);
+
+
+    return foundRows || [];
+
+  }
+
+
+  // =========================================================
   // SPORTS ENGINE
   // =========================================================
 
@@ -759,13 +991,30 @@ export default async function handler(req, res) {
 
         if (result.ok) {
 
+          const rows =
+            extractStandingsRows(
+              result.data
+            );
+
+
           sports.live = true;
 
           sports.type = "standings";
 
           sports.league = league;
 
-          sports.data = result.data;
+          // IMPORTANT:
+          // Store the actual table rows here.
+          sports.data = rows;
+
+          // Keep the original API response too.
+          sports.rawData = result.data;
+
+        } else {
+
+          sports.error =
+            result.error ||
+            `Sports API returned ${result.status}`;
 
         }
 
@@ -796,6 +1045,12 @@ export default async function handler(req, res) {
           sports.league = league;
 
           sports.data = result.data;
+
+        } else {
+
+          sports.error =
+            result.error ||
+            `Sports API returned ${result.status}`;
 
         }
 
@@ -872,11 +1127,27 @@ export default async function handler(req, res) {
 
     if (intent === "player_stats") {
 
-      const playerName =
+      let playerName =
         normalizedQuery
           .replace(/\s+stats$/i, "")
           .replace(/\s+statistics$/i, "")
           .trim();
+
+
+      // =====================================================
+      // CRISTIANO RONALDO IDENTITY LOCK
+      // =====================================================
+
+      const isCristianoRonaldo =
+        /\b(cristiano\s+ronaldo|ronaldo|cr7)\b/i
+          .test(playerName);
+
+
+      if (isCristianoRonaldo) {
+
+        playerName = "cristiano ronaldo";
+
+      }
 
 
       const playerSearch = await bbsRequest(
@@ -897,48 +1168,154 @@ export default async function handler(req, res) {
           players.length > 0
         ) {
 
-          const exactPlayer =
-            players.find(player => {
+          function getPlayerName(player) {
 
-              const name =
-                String(
-                  player?.name ||
-                  player?.full_name ||
-                  ""
-                ).toLowerCase();
+            return String(
+              player?.name ||
+              player?.full_name ||
+              player?.fullName ||
+              ""
+            )
+              .toLowerCase()
+              .replace(/\s+/g, " ")
+              .trim();
 
-              return name === playerName;
-
-            });
-
-
-          const player =
-            exactPlayer || players[0];
+          }
 
 
-          const playerId =
-            player?.id ||
-            player?.player_id;
+          let player = null;
 
 
-          if (playerId) {
+          // =================================================
+          // CRISTIANO RONALDO MUST MATCH CRISTIANO RONALDO
+          // =================================================
 
-            const stats = await bbsRequest(
-              `/v1/players/${playerId}/stats?sport=football`
-            );
+          if (isCristianoRonaldo) {
+
+            // First: exact match
+            player =
+              players.find(candidate =>
+                getPlayerName(candidate) ===
+                "cristiano ronaldo"
+              );
 
 
-            if (stats.ok) {
+            // Second: name contains both words
+            if (!player) {
 
-              sports.live = true;
+              player =
+                players.find(candidate => {
 
-              sports.type = "player_stats";
+                  const name =
+                    getPlayerName(candidate);
 
-              sports.player = player;
+                  return (
+                    name.includes("cristiano") &&
+                    name.includes("ronaldo")
+                  );
 
-              sports.data = stats.data;
+                });
 
             }
+
+
+            // Third: starts with Cristiano Ronaldo
+            if (!player) {
+
+              player =
+                players.find(candidate =>
+                  getPlayerName(candidate)
+                    .startsWith("cristiano ronaldo")
+                );
+
+            }
+
+
+            // IMPORTANT:
+            // DO NOT use players[0] here.
+            //
+            // If Big Balls returns Ronaldinho first,
+            // Nexora must NOT turn that into Ronaldo.
+
+          } else {
+
+            // =================================================
+            // GENERAL PLAYER MATCHING
+            // =================================================
+
+            player =
+              players.find(candidate =>
+                getPlayerName(candidate) === playerName
+              );
+
+
+            if (!player) {
+
+              player =
+                players.find(candidate =>
+                  getPlayerName(candidate)
+                    .startsWith(playerName)
+                );
+
+            }
+
+
+            if (!player) {
+
+              player =
+                players.find(candidate =>
+                  getPlayerName(candidate)
+                    .includes(playerName)
+                );
+
+            }
+
+
+            if (!player) {
+
+              player = players[0];
+
+            }
+
+          }
+
+
+          // =================================================
+          // ONLY CONTINUE IF WE FOUND THE CORRECT PLAYER
+          // =================================================
+
+          if (player) {
+
+            const playerId =
+              player?.id ||
+              player?.player_id;
+
+
+            if (playerId) {
+
+              const stats = await bbsRequest(
+                `/v1/players/${playerId}/stats?sport=football`
+              );
+
+
+              if (stats.ok) {
+
+                sports.live = true;
+
+                sports.type = "player_stats";
+
+                sports.player = player;
+
+                sports.data = stats.data;
+
+              }
+
+            }
+
+          } else {
+
+            sports.error =
+              `Nexora could not confirm the exact player: ${playerName}`;
 
           }
 
@@ -978,7 +1355,11 @@ export default async function handler(req, res) {
   };
 
 
-  if (query === "ronaldo" || query === "cr7") {
+  if (
+    query === "ronaldo" ||
+    query === "cr7" ||
+    query.includes("cristiano ronaldo")
+  ) {
 
     entity = {
 
@@ -995,7 +1376,10 @@ export default async function handler(req, res) {
   }
 
 
-  if (query === "messi") {
+  if (
+    query === "messi" ||
+    query.includes("lionel messi")
+  ) {
 
     entity = {
 
@@ -1113,6 +1497,10 @@ export default async function handler(req, res) {
   }
 
 
+  // =========================================================
+  // STANDINGS ANSWER
+  // =========================================================
+
   if (
     sports?.live &&
     sports.type === "standings"
@@ -1124,15 +1512,20 @@ export default async function handler(req, res) {
 
       type: "sports_standings",
 
-      data:
-        sports.data?.data ||
-        sports.data?.standings ||
-        []
+      // IMPORTANT:
+      // sports.data is already the real rows array.
+      data: Array.isArray(sports.data)
+        ? sports.data
+        : []
 
     };
 
   }
 
+
+  // =========================================================
+  // MATCHES ANSWER
+  // =========================================================
 
   if (
     sports?.live &&
@@ -1154,6 +1547,10 @@ export default async function handler(req, res) {
 
   }
 
+
+  // =========================================================
+  // PLAYER STATS ANSWER
+  // =========================================================
 
   if (
     sports?.live &&
@@ -1185,7 +1582,7 @@ export default async function handler(req, res) {
 
     success: true,
 
-    apiVersion: "V15.2",
+    apiVersion: "V15.3",
 
     query: originalQuery,
 
@@ -1217,7 +1614,7 @@ export default async function handler(req, res) {
     activeSources,
 
     message:
-      "Nexora V15.2 Intelligence Engine"
+      "Nexora V15.3 Intelligence Engine"
 
   });
 
