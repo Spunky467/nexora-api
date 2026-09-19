@@ -735,13 +735,6 @@ export default async function handler(req, res) {
       }
 
 
-      // Example:
-      // standings: [
-      //   {
-      //     rows: [...]
-      //   }
-      // ]
-
       if (Array.isArray(candidate)) {
 
         const nestedRows = candidate
@@ -758,9 +751,6 @@ export default async function handler(req, res) {
 
         }
 
-
-        // Sometimes the candidate itself is already
-        // the array of table rows.
 
         if (
           candidate.length > 0 &&
@@ -785,11 +775,6 @@ export default async function handler(req, res) {
 
       }
 
-
-      // Example:
-      // data: {
-      //   rows: [...]
-      // }
 
       if (
         candidate &&
@@ -984,7 +969,9 @@ export default async function handler(req, res) {
 
       if (league) {
 
-        fetch('https://nexora-api-wmmn.vercel.app/api/hello?q=Premier%20League%20standings').then(r => r.json()).then(x => console.log(JSON.stringify(x.sports.data, null, 2)))
+        const result = await bbsRequest(
+          `/v1/standings?sport=football&league=${league}&season=2026-27`
+        );
 
 
         if (result.ok) {
@@ -1001,7 +988,6 @@ export default async function handler(req, res) {
 
           sports.league = league;
 
-          // IMPORTANT:
           // Store the actual table rows here.
           sports.data = rows;
 
@@ -1190,7 +1176,6 @@ export default async function handler(req, res) {
 
           if (isCristianoRonaldo) {
 
-            // First: exact match
             player =
               players.find(candidate =>
                 getPlayerName(candidate) ===
@@ -1198,7 +1183,6 @@ export default async function handler(req, res) {
               );
 
 
-            // Second: name contains both words
             if (!player) {
 
               player =
@@ -1217,7 +1201,6 @@ export default async function handler(req, res) {
             }
 
 
-            // Third: starts with Cristiano Ronaldo
             if (!player) {
 
               player =
@@ -1227,13 +1210,6 @@ export default async function handler(req, res) {
                 );
 
             }
-
-
-            // IMPORTANT:
-            // DO NOT use players[0] here.
-            //
-            // If Big Balls returns Ronaldinho first,
-            // Nexora must NOT turn that into Ronaldo.
 
           } else {
 
@@ -1510,8 +1486,6 @@ export default async function handler(req, res) {
 
       type: "sports_standings",
 
-      // IMPORTANT:
-      // sports.data is already the real rows array.
       data: Array.isArray(sports.data)
         ? sports.data
         : []
