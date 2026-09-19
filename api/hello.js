@@ -984,9 +984,7 @@ export default async function handler(req, res) {
 
       if (league) {
 
-        const result = await bbsRequest(
-          `/v1/standings?sport=football&league=${league}`
-        );
+        fetch('https://nexora-api-wmmn.vercel.app/api/hello?q=Premier%20League%20standings').then(r => r.json()).then(x => console.log(JSON.stringify(x.sports.data, null, 2)))
 
 
         if (result.ok) {
