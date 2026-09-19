@@ -1229,7 +1229,7 @@ export default async function handler(req, res) {
 
       const result =
         await bbsRequest(
-          `/v1/matches?sport=football&league=${league}&season=2026-27&page=${page}&limit=${limit}`
+          `/v1/matches?sport=football&league=${league}&page=${page}&limit=${limit}`
         );
 
 
