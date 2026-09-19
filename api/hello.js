@@ -121,9 +121,11 @@ export default async function handler(req, res) {
 
     try {
 
-      const response = await fetch(url, options);
+      const response =
+        await fetch(url, options);
 
-      const text = await response.text();
+      const text =
+        await response.text();
 
       let data = null;
 
@@ -143,18 +145,29 @@ export default async function handler(req, res) {
 
 
       return {
+
         ok: response.ok,
-        status: response.status,
+
+        status:
+          response.status,
+
         data
+
       };
 
     } catch (error) {
 
       return {
+
         ok: false,
+
         status: null,
+
         data: null,
-        error: error.message
+
+        error:
+          error.message
+
       };
 
     }
@@ -166,7 +179,8 @@ export default async function handler(req, res) {
   // BIG BALLS SPORTS API
   // =========================================================
 
-  const BBS_KEY = process.env.BBS_API_KEY;
+  const BBS_KEY =
+    process.env.BBS_API_KEY;
 
 
   async function bbsRequest(path) {
@@ -174,22 +188,37 @@ export default async function handler(req, res) {
     if (!BBS_KEY) {
 
       return {
+
         ok: false,
+
         data: null,
-        error: "BBS_API_KEY missing"
+
+        error:
+          "BBS_API_KEY missing"
+
       };
 
     }
 
 
     return fetchJSON(
+
       `https://api.bigballsdata.com${path}`,
+
       {
+
         headers: {
-          Authorization: `Bearer ${BBS_KEY}`,
-          "User-Agent": "Nexora/15.5"
+
+          Authorization:
+            `Bearer ${BBS_KEY}`,
+
+          "User-Agent":
+            "Nexora/15.6"
+
         }
+
       }
+
     );
 
   }
@@ -458,7 +487,10 @@ export default async function handler(req, res) {
   }
 
 
-  const intent = detectIntent(normalizedQuery);
+  const intent =
+    detectIntent(
+      normalizedQuery
+    );
 
 
   // =========================================================
@@ -467,18 +499,20 @@ export default async function handler(req, res) {
 
   function buildHowTo(task) {
 
-    const cleanTask = task
-      .replace(/^how to\s+/i, "")
-      .replace(/^how do i\s+/i, "")
-      .replace(/^how can i\s+/i, "")
-      .replace(/^how can you\s+/i, "")
-      .replace(/^steps to\s+/i, "")
-      .replace(/^ways to\s+/i, "")
-      .replace(/^guide to\s+/i, "")
-      .trim();
+    const cleanTask =
+      task
+        .replace(/^how to\s+/i, "")
+        .replace(/^how do i\s+/i, "")
+        .replace(/^how can i\s+/i, "")
+        .replace(/^how can you\s+/i, "")
+        .replace(/^steps to\s+/i, "")
+        .replace(/^ways to\s+/i, "")
+        .replace(/^guide to\s+/i, "")
+        .trim();
 
 
-    const lowerTask = cleanTask.toLowerCase();
+    const lowerTask =
+      cleanTask.toLowerCase();
 
 
     if (
@@ -489,11 +523,14 @@ export default async function handler(req, res) {
 
       return {
 
-        title: "How to barb your hair",
+        title:
+          "How to barb your hair",
 
-        task: cleanTask,
+        task:
+          cleanTask,
 
-        type: "step_by_step",
+        type:
+          "step_by_step",
 
         steps: [
 
@@ -527,11 +564,14 @@ export default async function handler(req, res) {
 
       return {
 
-        title: "How to cook rice",
+        title:
+          "How to cook rice",
 
-        task: cleanTask,
+        task:
+          cleanTask,
 
-        type: "step_by_step",
+        type:
+          "step_by_step",
 
         steps: [
 
@@ -565,11 +605,14 @@ export default async function handler(req, res) {
 
       return {
 
-        title: "How to tie a tie",
+        title:
+          "How to tie a tie",
 
-        task: cleanTask,
+        task:
+          cleanTask,
 
-        type: "step_by_step",
+        type:
+          "step_by_step",
 
         steps: [
 
@@ -601,11 +644,14 @@ export default async function handler(req, res) {
 
       return {
 
-        title: "How to take a screenshot",
+        title:
+          "How to take a screenshot",
 
-        task: cleanTask,
+        task:
+          cleanTask,
 
-        type: "step_by_step",
+        type:
+          "step_by_step",
 
         steps: [
 
@@ -630,11 +676,14 @@ export default async function handler(req, res) {
 
     return {
 
-      title: `How to ${cleanTask}`,
+      title:
+        `How to ${cleanTask}`,
 
-      task: cleanTask,
+      task:
+        cleanTask,
 
-      type: "step_by_step",
+      type:
+        "step_by_step",
 
       steps: [
 
@@ -656,9 +705,14 @@ export default async function handler(req, res) {
   let howTo = null;
 
 
-  if (intent === "how_to") {
+  if (
+    intent === "how_to"
+  ) {
 
-    howTo = buildHowTo(normalizedQuery);
+    howTo =
+      buildHowTo(
+        normalizedQuery
+      );
 
   }
 
@@ -670,9 +724,12 @@ export default async function handler(req, res) {
   let product = null;
 
 
-  if (intent === "product") {
+  if (
+    intent === "product"
+  ) {
 
-    let productName = normalizedQuery;
+    let productName =
+      normalizedQuery;
 
 
     if (
@@ -680,16 +737,19 @@ export default async function handler(req, res) {
       query === "samsung s24"
     ) {
 
-      productName = "Samsung Galaxy S24";
+      productName =
+        "Samsung Galaxy S24";
 
     }
 
 
     product = {
 
-      name: productName,
+      name:
+        productName,
 
-      type: "technology_product"
+      type:
+        "technology_product"
 
     };
 
@@ -702,13 +762,17 @@ export default async function handler(req, res) {
 
   function firstNumber(...values) {
 
-    for (const value of values) {
+    for (
+      const value of values
+    ) {
 
       if (
         value !== undefined &&
         value !== null &&
         value !== "" &&
-        Number.isFinite(Number(value))
+        Number.isFinite(
+          Number(value)
+        )
       ) {
 
         return Number(value);
@@ -760,7 +824,9 @@ export default async function handler(req, res) {
     ];
 
 
-    for (const candidate of standingsCandidates) {
+    for (
+      const candidate of standingsCandidates
+    ) {
 
       if (!candidate) {
 
@@ -769,17 +835,25 @@ export default async function handler(req, res) {
       }
 
 
-      if (Array.isArray(candidate)) {
+      if (
+        Array.isArray(candidate)
+      ) {
 
-        const nestedRows = candidate
-          .filter(item =>
-            item &&
-            Array.isArray(item.rows)
-          )
-          .flatMap(item => item.rows);
+        const nestedRows =
+          candidate
+            .filter(item =>
+              item &&
+              Array.isArray(item.rows)
+            )
+            .flatMap(
+              item =>
+                item.rows
+            );
 
 
-        if (nestedRows.length > 0) {
+        if (
+          nestedRows.length > 0
+        ) {
 
           return nestedRows;
 
@@ -824,7 +898,10 @@ export default async function handler(req, res) {
     let foundRows = null;
 
 
-    function search(node, depth = 0) {
+    function search(
+      node,
+      depth = 0
+    ) {
 
       if (
         !node ||
@@ -837,13 +914,22 @@ export default async function handler(req, res) {
       }
 
 
-      if (Array.isArray(node)) {
+      if (
+        Array.isArray(node)
+      ) {
 
-        for (const item of node) {
+        for (
+          const item of node
+        ) {
 
-          search(item, depth + 1);
+          search(
+            item,
+            depth + 1
+          );
 
-          if (foundRows) {
+          if (
+            foundRows
+          ) {
 
             return;
 
@@ -856,21 +942,26 @@ export default async function handler(req, res) {
       }
 
 
-      if (typeof node === "object") {
+      if (
+        typeof node === "object"
+      ) {
 
         if (
           Array.isArray(node.rows) &&
           node.rows.length > 0
         ) {
 
-          foundRows = node.rows;
+          foundRows =
+            node.rows;
 
           return;
 
         }
 
 
-        for (const key of Object.keys(node)) {
+        for (
+          const key of Object.keys(node)
+        ) {
 
           if (
             key === "meta" ||
@@ -888,7 +979,9 @@ export default async function handler(req, res) {
           );
 
 
-          if (foundRows) {
+          if (
+            foundRows
+          ) {
 
             return;
 
@@ -915,123 +1008,127 @@ export default async function handler(req, res) {
 
   function normalizeStandingsRows(rows) {
 
-    return rows.map((row, index) => {
+    return rows.map(
+      (row, index) => {
 
-      return {
+        return {
 
-        position:
-          firstNumber(
-            row?.position,
-            row?.rank,
-            row?.place
-          ) ?? index + 1,
-
-
-        team_id:
-          row?.team_id ||
-          row?.team?.id ||
-          row?.id ||
-          null,
+          position:
+            firstNumber(
+              row?.position,
+              row?.rank,
+              row?.place
+            ) ?? index + 1,
 
 
-        team_name:
-          getTeamName(row),
+          team_id:
+            row?.team_id ||
+            row?.team?.id ||
+            row?.id ||
+            null,
 
 
-        played:
-          firstNumber(
-            row?.played,
-            row?.games_played,
-            row?.gamesPlayed,
-            row?.gp,
-            row?.matches_played,
-            row?.matchesPlayed
-          ),
+          team_name:
+            getTeamName(row),
 
 
-        won:
-          firstNumber(
-            row?.won,
-            row?.wins,
-            row?.win,
-            row?.w
-          ),
+          played:
+            firstNumber(
+              row?.played,
+              row?.games_played,
+              row?.gamesPlayed,
+              row?.gp,
+              row?.matches_played,
+              row?.matchesPlayed
+            ),
 
 
-        drawn:
-          firstNumber(
-            row?.drawn,
-            row?.draws,
-            row?.draw,
-            row?.d
-          ),
+          won:
+            firstNumber(
+              row?.won,
+              row?.wins,
+              row?.win,
+              row?.w
+            ),
 
 
-        lost:
-          firstNumber(
-            row?.lost,
-            row?.losses,
-            row?.loss,
-            row?.l
-          ),
+          drawn:
+            firstNumber(
+              row?.drawn,
+              row?.draws,
+              row?.draw,
+              row?.d
+            ),
 
 
-        goals_for:
-          firstNumber(
-            row?.goals_for,
-            row?.goalsFor,
-            row?.gf,
-            row?.goals_scored
-          ),
+          lost:
+            firstNumber(
+              row?.lost,
+              row?.losses,
+              row?.loss,
+              row?.l
+            ),
 
 
-        goals_against:
-          firstNumber(
-            row?.goals_against,
-            row?.goalsAgainst,
-            row?.ga,
-            row?.goals_conceded
-          ),
+          goals_for:
+            firstNumber(
+              row?.goals_for,
+              row?.goalsFor,
+              row?.gf,
+              row?.goals_scored
+            ),
 
 
-        goal_difference:
-          firstNumber(
-            row?.goal_difference,
-            row?.goalDifference,
-            row?.gd
-          ),
+          goals_against:
+            firstNumber(
+              row?.goals_against,
+              row?.goalsAgainst,
+              row?.ga,
+              row?.goals_conceded
+            ),
 
 
-        points:
-          firstNumber(
-            row?.points,
-            row?.pts
-          )
+          goal_difference:
+            firstNumber(
+              row?.goal_difference,
+              row?.goalDifference,
+              row?.gd
+            ),
 
-      };
 
-    });
+          points:
+            firstNumber(
+              row?.points,
+              row?.pts
+            )
+
+        };
+
+      }
+    );
 
   }
 
 
   function standingsHaveRealNumbers(rows) {
 
-    return rows.some(row =>
+    return rows.some(
+      row =>
 
-      [
-        row.played,
-        row.won,
-        row.drawn,
-        row.lost,
-        row.points
+        [
+          row.played,
+          row.won,
+          row.drawn,
+          row.lost,
+          row.points
 
-      ].some(value =>
+        ].some(
+          value =>
 
-        value !== null &&
-        value > 0
+            value !== null &&
+            value > 0
 
-      )
+        )
 
     );
 
@@ -1051,28 +1148,38 @@ export default async function handler(req, res) {
     }
 
 
-    if (Array.isArray(payload)) {
+    if (
+      Array.isArray(payload)
+    ) {
 
       return payload;
 
     }
 
 
-    if (Array.isArray(payload?.data)) {
+    if (
+      Array.isArray(payload?.data)
+    ) {
 
       return payload.data;
 
     }
 
 
-    if (Array.isArray(payload?.matches)) {
+    if (
+      Array.isArray(payload?.matches)
+    ) {
 
       return payload.matches;
 
     }
 
 
-    if (Array.isArray(payload?.data?.matches)) {
+    if (
+      Array.isArray(
+        payload?.data?.matches
+      )
+    ) {
 
       return payload.data.matches;
 
@@ -1084,12 +1191,19 @@ export default async function handler(req, res) {
   }
 
 
-  function getMatchTeam(match, side) {
+  function getMatchTeam(
+    match,
+    side
+  ) {
 
-    const value = match?.[side];
+    const value =
+      match?.[side];
 
 
-    if (typeof value === "object" && value !== null) {
+    if (
+      typeof value === "object" &&
+      value !== null
+    ) {
 
       return {
 
@@ -1110,18 +1224,24 @@ export default async function handler(req, res) {
 
     return {
 
-      id: null,
+      id:
+        null,
 
-      name: String(value || "")
+      name:
+        String(value || "")
 
     };
 
   }
 
 
-  function getScore(match, side) {
+  function getScore(
+    match,
+    side
+  ) {
 
-    const score = match?.score;
+    const score =
+      match?.score;
 
 
     if (
@@ -1154,10 +1274,14 @@ export default async function handler(req, res) {
 
 
       const directNumber =
-        firstNumber(direct);
+        firstNumber(
+          direct
+        );
 
 
-      if (directNumber !== null) {
+      if (
+        directNumber !== null
+      ) {
 
         return directNumber;
 
@@ -1207,18 +1331,226 @@ export default async function handler(req, res) {
 
 
   // =========================================================
-  // GET ALL LEAGUE MATCHES
+  // MATCH DATE
   // =========================================================
 
-  async function getAllLeagueMatches(league) {
+  function getMatchDate(match) {
+
+    const rawDate =
+      match?.kickoff_utc ||
+      match?.kickoff ||
+      match?.date ||
+      match?.start_time ||
+      match?.startTime ||
+      null;
+
+
+    if (!rawDate) {
+
+      return null;
+
+    }
+
+
+    const date =
+      new Date(rawDate);
+
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+
+      return null;
+
+    }
+
+
+    return date;
+
+  }
+
+
+  // =========================================================
+  // CHECK WHETHER MATCH IS FINISHED
+  // =========================================================
+
+  function isFinishedMatch(match) {
+
+    const status =
+      String(
+
+        match?.status ||
+        match?.state ||
+        ""
+
+      )
+        .toLowerCase()
+        .trim();
+
+
+    const homeScore =
+      getScore(
+        match,
+        "home"
+      );
+
+
+    const awayScore =
+      getScore(
+        match,
+        "away"
+      );
+
+
+    // Explicitly unfinished statuses.
+
+    if (
+      status.includes("scheduled") ||
+      status.includes("upcoming") ||
+      status.includes("not_started") ||
+      status.includes("postponed") ||
+      status.includes("cancelled") ||
+      status.includes("canceled")
+    ) {
+
+      return false;
+
+    }
+
+
+    // Explicitly finished statuses.
+
+    if (
+      status.includes("finished") ||
+      status.includes("complete") ||
+      status === "ft" ||
+      status === "closed"
+    ) {
+
+      return (
+        homeScore !== null &&
+        awayScore !== null
+      );
+
+    }
+
+
+    // If the API doesn't provide a clear status,
+    // a completed score is enough to use the match.
+
+    return (
+      homeScore !== null &&
+      awayScore !== null
+    );
+
+  }
+
+
+  // =========================================================
+  // CURRENT SEASON FILTER
+  // =========================================================
+
+  function isCurrentSeasonMatch(
+    match,
+    league
+  ) {
+
+    const date =
+      getMatchDate(
+        match
+      );
+
+
+    if (!date) {
+
+      return false;
+
+    }
+
+
+    const now =
+      new Date();
+
+
+    if (
+      date > now
+    ) {
+
+      return false;
+
+    }
+
+
+    /*
+      European football 2026/27 season.
+
+      We use August 1, 2026 as the
+      beginning of the current league season.
+    */
+
+    if (
+      league === "epl" ||
+      league === "laliga" ||
+      league === "serie_a" ||
+      league === "bundesliga" ||
+      league === "ligue1"
+    ) {
+
+      const seasonStart =
+        new Date(
+          "2026-08-01T00:00:00Z"
+        );
+
+
+      return (
+        date >= seasonStart &&
+        date <= now
+      );
+
+    }
+
+
+    return (
+      date <= now
+    );
+
+  }
+
+
+  // =========================================================
+  // GET FINISHED CURRENT-SEASON MATCHES
+  // =========================================================
+
+  async function getAllLeagueMatches(
+    league
+  ) {
 
     const allMatches = [];
 
-    const limit = 20;
 
-    const maxPages = 10;
+    /*
+      Big Balls allows larger match batches.
 
-    let pagesUsed = 0;
+      We first try the stored-matches endpoint because
+      it supports finished-status filtering.
+    */
+
+    const limit =
+      200;
+
+
+    const maxPages =
+      5;
+
+
+    let pagesUsed =
+      0;
+
+
+    let source =
+      "stored_matches";
 
 
     for (
@@ -1229,11 +1561,21 @@ export default async function handler(req, res) {
 
       const result =
         await bbsRequest(
-          `/v1/matches?sport=football&league=${league}&page=${page}&limit=${limit}`
+
+          `/v1/stored/matches?sport=football&league=${league}&status=finished&limit=${limit}&page=${page}`
+
         );
 
 
       if (!result.ok) {
+
+        /*
+          If stored matches is unavailable,
+          fall back to the normal matches endpoint.
+        */
+
+        source =
+          "matches_fallback";
 
         break;
 
@@ -1275,41 +1617,160 @@ export default async function handler(req, res) {
     }
 
 
+    /*
+      Fallback to /v1/matches if stored matches
+      was not available.
+    */
+
+    if (
+      source === "matches_fallback" ||
+      allMatches.length === 0
+    ) {
+
+      allMatches.length = 0;
+
+      pagesUsed = 0;
+
+      source =
+        "matches_fallback";
+
+
+      for (
+        let page = 1;
+        page <= maxPages;
+        page++
+      ) {
+
+        const result =
+          await bbsRequest(
+
+            `/v1/matches?sport=football&league=${league}&season=2026&page=${page}&limit=${limit}`
+
+          );
+
+
+        if (!result.ok) {
+
+          break;
+
+        }
+
+
+        const matches =
+          extractMatchRows(
+            result.data
+          );
+
+
+        if (
+          !Array.isArray(matches) ||
+          matches.length === 0
+        ) {
+
+          break;
+
+        }
+
+
+        pagesUsed++;
+
+
+        allMatches.push(
+          ...matches
+        );
+
+
+        if (
+          matches.length < limit
+        ) {
+
+          break;
+
+        }
+
+      }
+
+    }
+
+
+    /*
+      Remove duplicate matches.
+    */
+
     const uniqueMatches =
       Array.from(
 
         new Map(
 
-          allMatches.map(match => [
+          allMatches.map(
+            match => {
 
-            match?.id ||
+              const key =
 
-            `${
+                match?.id ||
 
-              match?.home?.name ||
-              match?.home ||
-              ""
+                `${
 
-            }-${
+                  match?.home?.id ||
+                  match?.home?.name ||
+                  match?.home ||
+                  ""
 
-              match?.away?.name ||
-              match?.away ||
-              ""
+                }-${
 
-            }-${
+                  match?.away?.id ||
+                  match?.away?.name ||
+                  match?.away ||
+                  ""
 
-              match?.kickoff_utc ||
-              match?.kickoff ||
-              match?.date ||
-              ""
+                }-${
 
-            }`,
+                  match?.kickoff_utc ||
+                  match?.kickoff ||
+                  match?.date ||
+                  ""
 
-            match
+                }`;
 
-          ])
+
+              return [
+                key,
+                match
+              ];
+
+            }
+
+          )
 
         ).values()
+
+      );
+
+
+    /*
+      VERY IMPORTANT:
+
+      Only use matches that:
+
+      1. Have both teams
+      2. Have a final score
+      3. Are not scheduled
+      4. Are from the current season
+      5. Have already happened
+    */
+
+    const finishedCurrentSeasonMatches =
+      uniqueMatches.filter(
+        match =>
+
+          isFinishedMatch(
+            match
+          ) &&
+
+          isCurrentSeasonMatch(
+            match,
+            league
+          )
 
       );
 
@@ -1317,12 +1778,20 @@ export default async function handler(req, res) {
     return {
 
       matches:
-        uniqueMatches,
+        finishedCurrentSeasonMatches,
+
+      rawMatches:
+        uniqueMatches.length,
+
+      finishedMatches:
+        finishedCurrentSeasonMatches.length,
 
       pagesUsed,
 
       requestedPages:
-        maxPages
+        maxPages,
+
+      source
 
     };
 
@@ -1333,81 +1802,123 @@ export default async function handler(req, res) {
   // CALCULATE STANDINGS FROM MATCHES
   // =========================================================
 
-  function buildStandingsFromMatches(matches) {
+  function buildStandingsFromMatches(
+    matches
+  ) {
 
-    const table = new Map();
+    const table =
+      new Map();
 
 
     function ensureTeam(team) {
 
-      const key =
-        team.id ||
-        team.name.toLowerCase();
+      const cleanName =
+        String(
+          team.name || ""
+        ).trim();
 
 
-      if (!table.has(key)) {
+      if (!cleanName) {
 
-        table.set(key, {
-
-          position: 0,
-
-          team_id: team.id,
-
-          team_name: team.name,
-
-          played: 0,
-
-          won: 0,
-
-          drawn: 0,
-
-          lost: 0,
-
-          goals_for: 0,
-
-          goals_against: 0,
-
-          goal_difference: 0,
-
-          points: 0
-
-        });
+        return null;
 
       }
 
 
-      return table.get(key);
+      const key =
+        team.id ||
+        cleanName.toLowerCase();
+
+
+      if (
+        !table.has(key)
+      ) {
+
+        table.set(
+          key,
+          {
+
+            position:
+              0,
+
+            team_id:
+              team.id,
+
+            team_name:
+              cleanName,
+
+            played:
+              0,
+
+            won:
+              0,
+
+            drawn:
+              0,
+
+            lost:
+              0,
+
+            goals_for:
+              0,
+
+            goals_against:
+              0,
+
+            goal_difference:
+              0,
+
+            points:
+              0
+
+          }
+        );
+
+      }
+
+
+      return table.get(
+        key
+      );
 
     }
 
 
-    for (const match of matches) {
-
-      const status =
-        String(
-          match?.status ||
-          match?.state ||
-          ""
-        ).toLowerCase();
-
+    for (
+      const match of matches
+    ) {
 
       const home =
-        getMatchTeam(match, "home");
+        getMatchTeam(
+          match,
+          "home"
+        );
 
 
       const away =
-        getMatchTeam(match, "away");
+        getMatchTeam(
+          match,
+          "away"
+        );
 
 
       const homeScore =
-        getScore(match, "home");
+        getScore(
+          match,
+          "home"
+        );
 
 
       const awayScore =
-        getScore(match, "away");
+        getScore(
+          match,
+          "away"
+        );
 
 
-      // Never count a match that has not been played.
+      /*
+        Never calculate from an incomplete match.
+      */
 
       if (
         !home.name ||
@@ -1421,10 +1932,21 @@ export default async function handler(req, res) {
       }
 
 
+      const homeRow =
+        ensureTeam(
+          home
+        );
+
+
+      const awayRow =
+        ensureTeam(
+          away
+        );
+
+
       if (
-        status.includes("scheduled") ||
-        status.includes("upcoming") ||
-        status.includes("not_started")
+        !homeRow ||
+        !awayRow
       ) {
 
         continue;
@@ -1432,42 +1954,51 @@ export default async function handler(req, res) {
       }
 
 
-      const homeRow =
-        ensureTeam(home);
-
-
-      const awayRow =
-        ensureTeam(away);
-
-
       homeRow.played++;
+
       awayRow.played++;
 
 
-      homeRow.goals_for += homeScore;
-      homeRow.goals_against += awayScore;
+      homeRow.goals_for +=
+        homeScore;
 
 
-      awayRow.goals_for += awayScore;
-      awayRow.goals_against += homeScore;
+      homeRow.goals_against +=
+        awayScore;
 
 
-      if (homeScore > awayScore) {
+      awayRow.goals_for +=
+        awayScore;
+
+
+      awayRow.goals_against +=
+        homeScore;
+
+
+      if (
+        homeScore >
+        awayScore
+      ) {
 
         homeRow.won++;
 
-        homeRow.points += 3;
+        homeRow.points +=
+          3;
 
         awayRow.lost++;
 
       }
 
 
-      else if (homeScore < awayScore) {
+      else if (
+        homeScore <
+        awayScore
+      ) {
 
         awayRow.won++;
 
-        awayRow.points += 3;
+        awayRow.points +=
+          3;
 
         homeRow.lost++;
 
@@ -1490,10 +2021,14 @@ export default async function handler(req, res) {
 
 
     const rows =
-      Array.from(table.values());
+      Array.from(
+        table.values()
+      );
 
 
-    for (const row of rows) {
+    for (
+      const row of rows
+    ) {
 
       row.goal_difference =
         row.goals_for -
@@ -1502,30 +2037,33 @@ export default async function handler(req, res) {
     }
 
 
-    rows.sort((a, b) =>
+    rows.sort(
+      (a, b) =>
 
-      b.points -
-      a.points ||
+        b.points -
+        a.points ||
 
-      b.goal_difference -
-      a.goal_difference ||
+        b.goal_difference -
+        a.goal_difference ||
 
-      b.goals_for -
-      a.goals_for ||
+        b.goals_for -
+        a.goals_for ||
 
-      a.team_name.localeCompare(
-        b.team_name
-      )
+        a.team_name.localeCompare(
+          b.team_name
+        )
 
     );
 
 
-    rows.forEach((row, index) => {
+    rows.forEach(
+      (row, index) => {
 
-      row.position =
-        index + 1;
+        row.position =
+          index + 1;
 
-    });
+      }
+    );
 
 
     return rows;
@@ -1537,7 +2075,8 @@ export default async function handler(req, res) {
   // SPORTS ENGINE
   // =========================================================
 
-  let sports = null;
+  let sports =
+    null;
 
 
   if (
@@ -1549,11 +2088,14 @@ export default async function handler(req, res) {
 
     sports = {
 
-      live: false,
+      live:
+        false,
 
-      intent: intent,
+      intent:
+        intent,
 
-      source: "Big Balls Sports Data"
+      source:
+        "Big Balls Sports Data"
 
     };
 
@@ -1580,35 +2122,45 @@ export default async function handler(req, res) {
       }
 
 
-      if (text.includes("la liga")) {
+      if (
+        text.includes("la liga")
+      ) {
 
         return "laliga";
 
       }
 
 
-      if (text.includes("serie a")) {
+      if (
+        text.includes("serie a")
+      ) {
 
         return "serie_a";
 
       }
 
 
-      if (text.includes("bundesliga")) {
+      if (
+        text.includes("bundesliga")
+      ) {
 
         return "bundesliga";
 
       }
 
 
-      if (text.includes("ligue 1")) {
+      if (
+        text.includes("ligue 1")
+      ) {
 
         return "ligue1";
 
       }
 
 
-      if (text.includes("mls")) {
+      if (
+        text.includes("mls")
+      ) {
 
         return "mls";
 
@@ -1621,7 +2173,9 @@ export default async function handler(req, res) {
 
 
     const league =
-      getLeague(normalizedQuery);
+      getLeague(
+        normalizedQuery
+      );
 
 
     // =======================================================
@@ -1633,13 +2187,24 @@ export default async function handler(req, res) {
       league
     ) {
 
+      /*
+        Big Balls uses the season-start year
+        for European-season competitions.
+
+        2026 = 2026/27.
+      */
+
       const result =
         await bbsRequest(
-          `/v1/standings?sport=football&league=${league}&season=2026-27`
+
+          `/v1/standings?sport=football&league=${league}&season=2026`
+
         );
 
 
-      if (result.ok) {
+      if (
+        result.ok
+      ) {
 
         const rawRows =
           extractStandingsRows(
@@ -1655,8 +2220,6 @@ export default async function handler(req, res) {
 
         // ---------------------------------------------------
         // FALLBACK
-        // If Big Balls returns zero/missing statistics,
-        // calculate the table from all available matches.
         // ---------------------------------------------------
 
         if (
@@ -1690,11 +2253,19 @@ export default async function handler(req, res) {
 
 
             sports.standingsSource =
-              "Big Balls matches - Nexora calculated";
+              "Big Balls finished matches - Nexora calculated";
 
 
             sports.matchesUsed =
               matches.length;
+
+
+            sports.rawMatchesFound =
+              matchesResult.rawMatches;
+
+
+            sports.finishedMatchesFound =
+              matchesResult.finishedMatches;
 
 
             sports.matchesPages =
@@ -1704,18 +2275,30 @@ export default async function handler(req, res) {
             sports.matchesPageLimit =
               matchesResult.requestedPages;
 
+
+            sports.matchesSource =
+              matchesResult.source;
+
           }
 
         }
 
 
-        sports.live = true;
+        sports.live =
+          true;
 
-        sports.type = "standings";
 
-        sports.league = league;
+        sports.type =
+          "standings";
 
-        sports.data = rows;
+
+        sports.league =
+          league;
+
+
+        sports.data =
+          rows;
+
 
         sports.rawData =
           result.data;
@@ -1742,21 +2325,33 @@ export default async function handler(req, res) {
       intent === "sports_matches"
     ) {
 
-      if (league) {
+      if (
+        league
+      ) {
 
         const result =
           await bbsRequest(
+
             `/v1/matches?sport=football&league=${league}&limit=20`
+
           );
 
 
-        if (result.ok) {
+        if (
+          result.ok
+        ) {
 
-          sports.live = true;
+          sports.live =
+            true;
 
-          sports.type = "matches";
 
-          sports.league = league;
+          sports.type =
+            "matches";
+
+
+          sports.league =
+            league;
+
 
           sports.data =
             result.data;
@@ -1777,14 +2372,20 @@ export default async function handler(req, res) {
 
       if (
         sports.live &&
-        footballClubs.some(club =>
-          normalizedQuery.includes(club)
+        footballClubs.some(
+          club =>
+            normalizedQuery.includes(
+              club
+            )
         )
       ) {
 
         const wantedTeam =
-          footballClubs.find(club =>
-            normalizedQuery.includes(club)
+          footballClubs.find(
+            club =>
+              normalizedQuery.includes(
+                club
+              )
           );
 
 
@@ -1798,52 +2399,60 @@ export default async function handler(req, res) {
           [];
 
 
-        if (Array.isArray(rows)) {
+        if (
+          Array.isArray(rows)
+        ) {
 
           sports.data = {
 
             ...sports.data,
 
             data:
-              rows.filter(match => {
+              rows.filter(
+                match => {
 
-                const homeName =
-                  String(
-                    match?.home?.name ||
-                    match?.home ||
-                    ""
-                  ).toLowerCase();
+                  const homeName =
+                    String(
 
+                      match?.home?.name ||
+                      match?.home ||
+                      ""
 
-                const awayName =
-                  String(
-                    match?.away?.name ||
-                    match?.away ||
-                    ""
-                  ).toLowerCase();
+                    ).toLowerCase();
 
 
-                return (
+                  const awayName =
+                    String(
 
-                  homeName.includes(
-                    wantedTeam
-                  ) ||
+                      match?.away?.name ||
+                      match?.away ||
+                      ""
 
-                  wantedTeam.includes(
-                    homeName
-                  ) ||
+                    ).toLowerCase();
 
-                  awayName.includes(
-                    wantedTeam
-                  ) ||
 
-                  wantedTeam.includes(
-                    awayName
-                  )
+                  return (
 
-                );
+                    homeName.includes(
+                      wantedTeam
+                    ) ||
 
-              })
+                    wantedTeam.includes(
+                      homeName
+                    ) ||
+
+                    awayName.includes(
+                      wantedTeam
+                    ) ||
+
+                    wantedTeam.includes(
+                      awayName
+                    )
+
+                  );
+
+                }
+              )
 
           };
 
@@ -1864,17 +2473,27 @@ export default async function handler(req, res) {
 
       let playerName =
         normalizedQuery
-          .replace(/\s+stats$/i, "")
-          .replace(/\s+statistics$/i, "")
+          .replace(
+            /\s+stats$/i,
+            ""
+          )
+          .replace(
+            /\s+statistics$/i,
+            ""
+          )
           .trim();
 
 
       const isCristianoRonaldo =
         /\b(cristiano\s+ronaldo|ronaldo|cr7)\b/i
-          .test(playerName);
+          .test(
+            playerName
+          );
 
 
-      if (isCristianoRonaldo) {
+      if (
+        isCristianoRonaldo
+      ) {
 
         playerName =
           "cristiano ronaldo";
@@ -1884,11 +2503,15 @@ export default async function handler(req, res) {
 
       const playerSearch =
         await bbsRequest(
+
           `/v1/players?sport=football&search=${encodeURIComponent(playerName)}`
+
         );
 
 
-      if (playerSearch.ok) {
+      if (
+        playerSearch.ok
+      ) {
 
         const players =
           playerSearch.data?.data ||
@@ -1901,7 +2524,9 @@ export default async function handler(req, res) {
           players.length > 0
         ) {
 
-          function getPlayerName(player) {
+          function getPlayerName(
+            player
+          ) {
 
             return String(
 
@@ -1912,39 +2537,56 @@ export default async function handler(req, res) {
 
             )
               .toLowerCase()
-              .replace(/\s+/g, " ")
+              .replace(
+                /\s+/g,
+                " "
+              )
               .trim();
 
           }
 
 
-          let player = null;
+          let player =
+            null;
 
 
-          if (isCristianoRonaldo) {
+          if (
+            isCristianoRonaldo
+          ) {
 
             player =
-              players.find(candidate =>
-                getPlayerName(candidate) ===
-                "cristiano ronaldo"
+              players.find(
+                candidate =>
+                  getPlayerName(
+                    candidate
+                  ) ===
+                  "cristiano ronaldo"
               );
 
 
             if (!player) {
 
               player =
-                players.find(candidate => {
+                players.find(
+                  candidate => {
 
-                  const name =
-                    getPlayerName(candidate);
+                    const name =
+                      getPlayerName(
+                        candidate
+                      );
 
 
-                  return (
-                    name.includes("cristiano") &&
-                    name.includes("ronaldo")
-                  );
+                    return (
+                      name.includes(
+                        "cristiano"
+                      ) &&
+                      name.includes(
+                        "ronaldo"
+                      )
+                    );
 
-                });
+                  }
+                );
 
             }
 
@@ -1952,11 +2594,14 @@ export default async function handler(req, res) {
             if (!player) {
 
               player =
-                players.find(candidate =>
-                  getPlayerName(candidate)
-                    .startsWith(
-                      "cristiano ronaldo"
+                players.find(
+                  candidate =>
+                    getPlayerName(
+                      candidate
                     )
+                      .startsWith(
+                        "cristiano ronaldo"
+                      )
                 );
 
             }
@@ -1967,18 +2612,26 @@ export default async function handler(req, res) {
           else {
 
             player =
-              players.find(candidate =>
-                getPlayerName(candidate) ===
-                playerName
+              players.find(
+                candidate =>
+                  getPlayerName(
+                    candidate
+                  ) ===
+                  playerName
               );
 
 
             if (!player) {
 
               player =
-                players.find(candidate =>
-                  getPlayerName(candidate)
-                    .startsWith(playerName)
+                players.find(
+                  candidate =>
+                    getPlayerName(
+                      candidate
+                    )
+                      .startsWith(
+                        playerName
+                      )
                 );
 
             }
@@ -1987,9 +2640,14 @@ export default async function handler(req, res) {
             if (!player) {
 
               player =
-                players.find(candidate =>
-                  getPlayerName(candidate)
-                    .includes(playerName)
+                players.find(
+                  candidate =>
+                    getPlayerName(
+                      candidate
+                    )
+                      .includes(
+                        playerName
+                      )
                 );
 
             }
@@ -2005,30 +2663,42 @@ export default async function handler(req, res) {
           }
 
 
-          if (player) {
+          if (
+            player
+          ) {
 
             const playerId =
               player?.id ||
               player?.player_id;
 
 
-            if (playerId) {
+            if (
+              playerId
+            ) {
 
               const stats =
                 await bbsRequest(
+
                   `/v1/players/${playerId}/stats?sport=football`
+
                 );
 
 
-              if (stats.ok) {
+              if (
+                stats.ok
+              ) {
 
-                sports.live = true;
+                sports.live =
+                  true;
+
 
                 sports.type =
                   "player_stats";
 
+
                 sports.player =
                   player;
+
 
                 sports.data =
                   stats.data;
@@ -2080,9 +2750,11 @@ export default async function handler(req, res) {
 
   let entity = {
 
-    type: intent,
+    type:
+      intent,
 
-    name: normalizedQuery
+    name:
+      normalizedQuery
 
   };
 
@@ -2090,14 +2762,18 @@ export default async function handler(req, res) {
   if (
     query === "ronaldo" ||
     query === "cr7" ||
-    query.includes("cristiano ronaldo")
+    query.includes(
+      "cristiano ronaldo"
+    )
   ) {
 
     entity = {
 
-      type: "person",
+      type:
+        "person",
 
-      name: "Cristiano Ronaldo",
+      name:
+        "Cristiano Ronaldo",
 
       canonicalName:
         "Cristiano Ronaldo",
@@ -2112,14 +2788,18 @@ export default async function handler(req, res) {
 
   if (
     query === "messi" ||
-    query.includes("lionel messi")
+    query.includes(
+      "lionel messi"
+    )
   ) {
 
     entity = {
 
-      type: "person",
+      type:
+        "person",
 
-      name: "Lionel Messi",
+      name:
+        "Lionel Messi",
 
       canonicalName:
         "Lionel Messi",
@@ -2136,7 +2816,8 @@ export default async function handler(req, res) {
   // WIKIPEDIA
   // =========================================================
 
-  let wikipedia = null;
+  let wikipedia =
+    null;
 
 
   const shouldUseWikipedia =
@@ -2147,7 +2828,9 @@ export default async function handler(req, res) {
     intent === "anime_manga";
 
 
-  if (shouldUseWikipedia) {
+  if (
+    shouldUseWikipedia
+  ) {
 
     const wikiSearchTerm =
       entity.wikimediaTitle ||
@@ -2160,7 +2843,9 @@ export default async function handler(req, res) {
       );
 
 
-    if (wiki.ok) {
+    if (
+      wiki.ok
+    ) {
 
       wikipedia =
         wiki.data?.query?.search?.slice(
@@ -2177,10 +2862,13 @@ export default async function handler(req, res) {
   // ACTIVE SOURCES
   // =========================================================
 
-  const activeSources = [];
+  const activeSources =
+    [];
 
 
-  if (sports?.live) {
+  if (
+    sports?.live
+  ) {
 
     activeSources.push(
       "Big Balls Sports Data"
@@ -2189,7 +2877,9 @@ export default async function handler(req, res) {
   }
 
 
-  if (wikipedia) {
+  if (
+    wikipedia
+  ) {
 
     activeSources.push(
       "Wikipedia"
@@ -2198,7 +2888,9 @@ export default async function handler(req, res) {
   }
 
 
-  if (intent === "how_to") {
+  if (
+    intent === "how_to"
+  ) {
 
     activeSources.push(
       "Nexora How-To Engine"
@@ -2207,7 +2899,9 @@ export default async function handler(req, res) {
   }
 
 
-  if (intent === "product") {
+  if (
+    intent === "product"
+  ) {
 
     activeSources.push(
       "Nexora Product Understanding"
@@ -2220,10 +2914,13 @@ export default async function handler(req, res) {
   // ANSWER
   // =========================================================
 
-  let answer = null;
+  let answer =
+    null;
 
 
-  if (intent === "how_to") {
+  if (
+    intent === "how_to"
+  ) {
 
     answer = {
 
@@ -2259,7 +2956,9 @@ export default async function handler(req, res) {
         "sports_standings",
 
       data:
-        Array.isArray(sports.data)
+        Array.isArray(
+          sports.data
+        )
           ? sports.data
           : []
 
@@ -2328,10 +3027,11 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
 
-    success: true,
+    success:
+      true,
 
     apiVersion:
-      "V15.5",
+      "V15.6",
 
     query:
       originalQuery,
@@ -2364,7 +3064,7 @@ export default async function handler(req, res) {
     activeSources,
 
     message:
-      "Nexora V15.5 Intelligence Engine"
+      "Nexora V15.6 Intelligence Engine"
 
   });
 
