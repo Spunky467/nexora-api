@@ -187,7 +187,7 @@ export default async function handler(req, res) {
       {
         headers: {
           Authorization: `Bearer ${BBS_KEY}`,
-          "User-Agent": "Nexora/15.4"
+          "User-Agent": "Nexora/15.5"
         }
       }
     );
@@ -1207,6 +1207,129 @@ export default async function handler(req, res) {
 
 
   // =========================================================
+  // GET ALL LEAGUE MATCHES
+  // =========================================================
+
+  async function getAllLeagueMatches(league) {
+
+    const allMatches = [];
+
+    const limit = 20;
+
+    const maxPages = 10;
+
+    let pagesUsed = 0;
+
+
+    for (
+      let page = 1;
+      page <= maxPages;
+      page++
+    ) {
+
+      const result =
+        await bbsRequest(
+          `/v1/matches?sport=football&league=${league}&season=2026-27&page=${page}&limit=${limit}`
+        );
+
+
+      if (!result.ok) {
+
+        break;
+
+      }
+
+
+      const matches =
+        extractMatchRows(
+          result.data
+        );
+
+
+      if (
+        !Array.isArray(matches) ||
+        matches.length === 0
+      ) {
+
+        break;
+
+      }
+
+
+      pagesUsed++;
+
+
+      allMatches.push(
+        ...matches
+      );
+
+
+      if (
+        matches.length < limit
+      ) {
+
+        break;
+
+      }
+
+    }
+
+
+    const uniqueMatches =
+      Array.from(
+
+        new Map(
+
+          allMatches.map(match => [
+
+            match?.id ||
+
+            `${
+
+              match?.home?.name ||
+              match?.home ||
+              ""
+
+            }-${
+
+              match?.away?.name ||
+              match?.away ||
+              ""
+
+            }-${
+
+              match?.kickoff_utc ||
+              match?.kickoff ||
+              match?.date ||
+              ""
+
+            }`,
+
+            match
+
+          ])
+
+        ).values()
+
+      );
+
+
+    return {
+
+      matches:
+        uniqueMatches,
+
+      pagesUsed,
+
+      requestedPages:
+        maxPages
+
+    };
+
+  }
+
+
+  // =========================================================
   // CALCULATE STANDINGS FROM MATCHES
   // =========================================================
 
@@ -1512,7 +1635,7 @@ export default async function handler(req, res) {
 
       const result =
         await bbsRequest(
-          `/v1/standings?sport=football&league=${league}`
+          `/v1/standings?sport=football&league=${league}&season=2026-27`
         );
 
 
@@ -1530,9 +1653,11 @@ export default async function handler(req, res) {
           );
 
 
-        // If Big Balls returns zero/missing
-        // statistics, calculate the table
-        // from actual completed matches.
+        // ---------------------------------------------------
+        // FALLBACK
+        // If Big Balls returns zero/missing statistics,
+        // calculate the table from all available matches.
+        // ---------------------------------------------------
 
         if (
           !standingsHaveRealNumbers(
@@ -1541,37 +1666,43 @@ export default async function handler(req, res) {
         ) {
 
           const matchesResult =
-            await bbsRequest(
-              `/v1/matches?sport=football&league=${league}&limit=200`
+            await getAllLeagueMatches(
+              league
             );
 
 
-          if (matchesResult.ok) {
-
-            const matches =
-              extractMatchRows(
-                matchesResult.data
-              );
+          const matches =
+            matchesResult.matches;
 
 
-            const calculated =
-              buildStandingsFromMatches(
-                matches
-              );
+          const calculated =
+            buildStandingsFromMatches(
+              matches
+            );
 
 
-            if (
-              calculated.length > 0
-            ) {
+          if (
+            calculated.length > 0
+          ) {
 
-              rows =
-                calculated;
+            rows =
+              calculated;
 
 
-              sports.standingsSource =
-                "Big Balls matches - Nexora calculated";
+            sports.standingsSource =
+              "Big Balls matches - Nexora calculated";
 
-            }
+
+            sports.matchesUsed =
+              matches.length;
+
+
+            sports.matchesPages =
+              matchesResult.pagesUsed;
+
+
+            sports.matchesPageLimit =
+              matchesResult.requestedPages;
 
           }
 
@@ -2200,7 +2331,7 @@ export default async function handler(req, res) {
     success: true,
 
     apiVersion:
-      "V15.4",
+      "V15.5",
 
     query:
       originalQuery,
@@ -2233,7 +2364,7 @@ export default async function handler(req, res) {
     activeSources,
 
     message:
-      "Nexora V15.4 Intelligence Engine"
+      "Nexora V15.5 Intelligence Engine"
 
   });
 
